@@ -16,13 +16,6 @@
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 #map{position:absolute;inset:0}
 button,select,input,textarea{font:inherit;color:inherit}
-#top{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:60px;max-width:420px;z-index:5}
-#q{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);box-shadow:0 4px 16px #0006;outline:none}
-#q:focus{border-color:var(--acc)}
-#res{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:6px;overflow:hidden;display:none}
-#res div{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
-#res div:last-child{border:0}
-#res div:hover{background:#1d2c3b}
 #fabs{position:absolute;right:10px;bottom:calc(70px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;z-index:5}
 .fab{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--card);box-shadow:0 4px 14px #0007;font-size:20px;cursor:pointer;display:grid;place-items:center}
 .fab.on{background:var(--acc);border-color:var(--acc);color:#fff}
@@ -58,14 +51,11 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 
 .maplibregl-popup-content{max-height:75vh;overflow:auto}
 @media (orientation:landscape){
-  #top{left:max(10px,env(safe-area-inset-left))}
-  #hud{left:max(10px,env(safe-area-inset-left))}
+    #hud{left:max(10px,env(safe-area-inset-left))}
   #fabs{right:max(10px,env(safe-area-inset-right))}
 }
 @media (max-height:520px){
-  #top{top:8px;max-width:300px}
-  #q{padding:8px 12px}
-  #fabs{top:50%;bottom:auto;transform:translateY(-50%);gap:8px}
+      #fabs{top:50%;bottom:auto;transform:translateY(-50%);gap:8px}
   .fab{width:42px;height:42px;font-size:18px}
   .maplibregl-ctrl-top-right{display:none}
   #hud{bottom:26px;font-size:12px;padding:4px 8px}
@@ -75,9 +65,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 }
 @media (min-width:900px){
   .fab{width:56px;height:56px;font-size:23px}
-  #top{max-width:460px}
-  #q{font-size:16px;padding:13px 16px}
-  #panel{width:400px}
+      #panel{width:400px}
   #bmenu,#rmenu{right:84px}
   .maplibregl-popup-content{font-size:14px}
 }
@@ -100,10 +88,6 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 <body>
 <div id="map"></div>
 
-<div id="top">
-  <input id="q" type="search" placeholder="Sök plats, fjäll, stuga …" autocomplete="off">
-  <div id="res"></div>
-</div>
 
 <div id="fabs">
   <button class="fab" id="b-loc" title="Min posisjon">◎</button>
@@ -658,26 +642,6 @@ $('#b-meas').onclick = () => {
   $('#b-meas').classList.toggle('on', measuring);
   drawMeasure();
 };
-
-/* ---------- søk ---------- */
-let qT = null;
-$('#q').addEventListener('input', e => {
-  clearTimeout(qT);
-  const v = e.target.value.trim(), box = $('#res');
-  if (v.length < 3) { box.style.display = 'none'; return; }
-  qT = setTimeout(async () => {
-    try {
-      const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=se&accept-language=sv&q=${encodeURIComponent(v)}`)).json();
-      box.replaceChildren(...j.map(r => h('div', { onclick: () => {
-        box.style.display = 'none'; $('#q').value = r.display_name.split(',')[0];
-        if (r.boundingbox) map.fitBounds([[+r.boundingbox[2], +r.boundingbox[0]], [+r.boundingbox[3], +r.boundingbox[1]]], { maxZoom: 13, duration: 900 });
-        else map.flyTo({ center: [+r.lon, +r.lat], zoom: 12 });
-      } }, r.display_name)));
-      box.style.display = j.length ? 'block' : 'none';
-    } catch { box.style.display = 'none'; }
-  }, 350);
-});
-document.addEventListener('click', e => { if (!e.target.closest('#top')) $('#res').style.display = 'none'; });
 
 /* ---------- hurtigvalg: svenske skuterområder ---------- */
 const JUMPS = [
