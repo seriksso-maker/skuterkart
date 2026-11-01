@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Skuterkart</title>
+<meta name="theme-color" content="#0f1720">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+:root{--bg:#0f1720;--card:#16212d;--line:#243446;--fg:#e8eef5;--mut:#8ea2b7;--acc:#ff6b00;--ok:#2ecc71;--bad:#ff4d4d}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+#map{position:absolute;inset:0}
+button,select,input,textarea{font:inherit;color:inherit}
+#top{position:absolute;top:max(10px,env(safe-area-inset-top));left:10px;right:60px;max-width:420px;z-index:5}
+#q{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);box-shadow:0 4px 16px #0006;outline:none}
+#q:focus{border-color:var(--acc)}
+#res{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:6px;overflow:hidden;display:none}
+#res div{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+#res div:last-child{border:0}
+#res div:hover{background:#1d2c3b}
+#fabs{position:absolute;right:10px;bottom:calc(70px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;z-index:5}
+.fab{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--card);box-shadow:0 4px 14px #0007;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.fab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.fab.rec.on{background:var(--bad);border-color:var(--bad)}
+#hud{position:absolute;left:10px;bottom:calc(34px + env(safe-area-inset-bottom));z-index:4;background:#0f1720cc;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;display:none;max-width:70vw;backdrop-filter:blur(6px)}
+#panel{position:absolute;z-index:8;right:0;top:0;bottom:0;width:min(360px,100%);background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));box-shadow:-8px 0 30px #0008}
+#panel[hidden]{display:none}
+#panel h3{margin:18px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+#panel h2{margin:0;font-size:20px}
+#panel label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
+.btn{display:block;width:100%;text-align:left;padding:11px 12px;margin:6px 0;border-radius:10px;border:1px solid var(--line);background:#1b2a3a;cursor:pointer}
+.btn:hover{border-color:var(--acc)}
+.btn.sm{display:inline-block;width:auto;margin:4px 6px 0 0;padding:7px 10px;font-size:13px}
+.x{float:right;background:none;border:0;font-size:24px;cursor:pointer;color:var(--mut)}
+.leg{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mut);padding:3px 0}
+.leg i{display:inline-block;width:26px;height:4px;border-radius:2px}
+.leg b{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid #fff}
+.pp{color:#10161d;min-width:200px;max-width:260px;font-size:13px}
+.pp h4{margin:0 0 4px;font-size:15px}
+.pp .m{color:#556;margin:2px 0}
+.pp .wx{margin-top:6px;padding:6px 8px;background:#eef3f8;border-radius:8px}
+.pp button,.pp a.b{display:inline-block;margin:6px 6px 0 0;padding:6px 9px;border-radius:8px;border:1px solid #c5d0db;background:#fff;cursor:pointer;font-size:13px;color:#10161d;text-decoration:none}
+.maplibregl-popup-content{border-radius:12px;padding:12px 14px}
+.mk{font-size:24px;line-height:1;filter:drop-shadow(0 1px 2px #000a);cursor:pointer;transform:translateY(-4px)}
+.gps{width:18px;height:18px;border-radius:50%;background:#2d8cff;border:3px solid #fff;box-shadow:0 0 0 2px #2d8cff66,0 2px 8px #0008}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--fg);padding:18px;width:min(340px,92vw)}
+dialog::backdrop{background:#0009}
+dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-radius:8px;border:1px solid var(--line);background:#0f1720}
+.maplibregl-ctrl-top-right{top:max(0px,env(safe-area-inset-top))}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="top">
+  <input id="q" type="search" placeholder="Søk sted, hytte, fjell …" autocomplete="off">
+  <div id="res"></div>
+</div>
+
+<div id="fabs">
+  <button class="fab" id="b-loc" title="Min posisjon">◎</button>
+  <button class="fab rec" id="b-rec" title="Ta opp spor">●</button>
+  <button class="fab" id="b-meas" title="Mål avstand">📏</button>
+  <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
+</div>
+
+<div id="hud"></div>
+
+<aside id="panel" hidden>
+  <button class="x" id="p-close">×</button>
+  <h2>Skuterkart</h2>
+  <h3>Kartbakgrunn</h3>
+  <div id="bases"></div>
+  <h3>Lag</h3>
+  <label><input type="checkbox" id="l-trails" checked> Skuterløyper (OSM)</label>
+  <label><input type="checkbox" id="l-pois" checked> Hytter, vindskjul, bensin</label>
+  <label><input type="checkbox" id="l-marks" checked> Mine markører</label>
+  <label><input type="checkbox" id="l-track" checked> Mitt spor</label>
+  <label><input type="checkbox" id="l-gpx" checked> Importert GPX</label>
+  <h3>Verktøy</h3>
+  <button class="btn" id="t-add">📍 Legg markør ved kartsenter</button>
+  <button class="btn" id="t-exp-track">⬇ Eksporter mitt spor (GPX)</button>
+  <button class="btn" id="t-clr-track">🗑 Slett mitt spor</button>
+  <button class="btn" id="t-exp-marks">⬇ Eksporter markører (GPX)</button>
+  <button class="btn" id="t-imp">⬆ Importer GPX</button>
+  <button class="btn" id="t-clr-gpx">✕ Fjern importert GPX</button>
+  <h3>Offline</h3>
+  <button class="btn" id="t-off">📥 Last ned synlig område til offline</button>
+  <button class="btn" id="t-clr-cache">🧹 Tøm offline-lager</button>
+  <div class="leg" id="off-info"></div>
+  <h3>Tegnforklaring</h3>
+  <div class="leg"><i style="background:#ff5a00"></i> Skuterløype (designated)</div>
+  <div class="leg"><i style="background:#ff9f1a"></i> Tillatt (yes)</div>
+  <div class="leg"><i style="background:#a0a0a0"></i> Betinget (permissive)</div>
+  <div class="leg"><b style="background:#9b59ff"></b> Hytte</div>
+  <div class="leg"><b style="background:#2ecc71"></b> Vindskjul</div>
+  <div class="leg"><b style="background:#ff3b3b"></b> Bensin</div>
+  <div class="leg"><i style="background:#2d8cff"></i> Mitt spor / importert GPX</div>
+  <p class="leg" style="display:block;margin-top:14px">Løypedata: © OpenStreetMap-bidragsytere. Sjekk alltid lokale regler, løypestatus og skredvarsel (varsom.no) før du kjører.</p>
+</aside>
+
+<dialog id="dlg">
+  <form method="dialog" id="dlg-form">
+    <b>Ny markør</b>
+    <select id="d-type"></select>
+    <textarea id="d-text" rows="3" placeholder="Notat (valgfritt)"></textarea>
+    <button class="btn sm" value="ok" id="d-ok">Lagre</button>
+    <button class="btn sm" value="cancel">Avbryt</button>
+  </form>
+</dialog>
+<input type="file" id="gpxfile" accept=".gpx,application/gpx+xml,text/xml" hidden>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids) e.append(c);
+  return e;
+}
+const rad = d => d * Math.PI / 180;
+function dist(a, b) { // meter, [lon,lat]
+  const R = 6371000, dLa = rad(b[1] - a[1]), dLo = rad(b[0] - a[0]);
+  const x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[1])) * Math.cos(rad(b[1])) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+const fmtKm = m => m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(m < 10000 ? 2 : 1) + ' km';
+const lon2x = (lon, z) => (lon + 180) / 360 * 2 ** z;
+const lat2y = (lat, z) => { lat = Math.max(-85, Math.min(85, lat)); const r = rad(lat); return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z; };
+const x2lon = (x, z) => x / 2 ** z * 360 - 180;
+const y2lat = (y, z) => 180 / Math.PI * Math.atan(Math.sinh(Math.PI - 2 * Math.PI * y / 2 ** z));
+const empty = () => ({ type: 'FeatureCollection', features: [] });
+
+/* ---------- kartbakgrunner ---------- */
+const BASES = {
+  topo: { name: 'Terreng (OpenTopoMap) – Norge + Sverige', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
+  kv:   { name: 'Kartverket topo – Norge', tiles: ['https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png'], max: 18, attr: '© Kartverket' },
+  osm:  { name: 'OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, attr: '© OpenStreetMap-bidragsytere' },
+  sat:  { name: 'Satellitt (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, Maxar, Earthstar Geographics' }
+};
+let curBase = LS.get('sk_base', 'topo');
+if (!BASES[curBase]) curBase = 'topo';
+
+function mkStyle() {
+  const sources = {}, layers = [{ id: 'bg', type: 'background', paint: { 'background-color': '#0f1720' } }];
+  for (const [k, b] of Object.entries(BASES)) {
+    sources['b_' + k] = { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.max, attribution: b.attr };
+    layers.push({ id: 'b_' + k, type: 'raster', source: 'b_' + k, layout: { visibility: k === curBase ? 'visible' : 'none' } });
+  }
+  return { version: 8, sources, layers };
+}
+
+const saved = LS.get('sk_view', { c: [13, 62.5], z: 6 });
+const map = new maplibregl.Map({
+  container: 'map', style: mkStyle(), center: saved.c, zoom: saved.z,
+  hash: true, maxPitch: 60, attributionControl: { compact: true }
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+map.on('moveend', () => LS.set('sk_view', { c: map.getCenter().toArray(), z: map.getZoom() }));
+
+/* ---------- state ---------- */
+const trailF = new Map(), poiF = new Map();
+let marks = LS.get('sk_marks', []);
+let track = LS.get('sk_track', []);
+let recording = false, following = false, watchId = null, lastFix = null;
+let measuring = false, mpts = [];
+let mapReady = false;
+
+const KINDS = {
+  hut: ['🏠', 'Hytte'], shelter: ['🛖', 'Vindskjul'], fuel: ['⛽', 'Bensin'],
+  warn: ['⚠️', 'Fare'], parking: ['🅿️', 'Parkering'], cafe: ['☕', 'Kafé'], camp: ['⛺', 'Leirplass'], note: ['📍', 'Notat']
+};
+const MARK_TYPES = ['warn', 'fuel', 'shelter', 'hut', 'parking', 'cafe', 'camp', 'note'];
+
+/* ---------- kartlag ---------- */
+map.on('load', () => {
+  mapReady = true;
+  for (const id of ['trails', 'pois', 'track', 'measure', 'acc', 'gpx']) map.addSource(id, { type: 'geojson', data: empty() });
+
+  map.addLayer({ id: 'gpx-line', type: 'line', source: 'gpx', filter: ['==', '$type', 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 3, 'line-opacity': .85 } });
+  map.addLayer({ id: 'gpx-pt', type: 'circle', source: 'gpx', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#2d8cff', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+
+  map.addLayer({ id: 'trail-casing', type: 'line', source: 'trails', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-opacity': .85, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.4, 10, 5, 14, 8] } });
+  map.addLayer({ id: 'trail-line', type: 'line', source: 'trails', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+    'line-color': ['match', ['get', 'sn'], 'designated', '#ff5a00', 'yes', '#ff9f1a', 'permissive', '#a0a0a0', '#ff5a00'],
+    'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 10, 2.6, 14, 4.5] } });
+
+  map.addLayer({ id: 'poi-c', type: 'circle', source: 'pois', paint: {
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 12, 8],
+    'circle-color': ['match', ['get', 'kind'], 'hut', '#9b59ff', 'shelter', '#2ecc71', 'fuel', '#ff3b3b', '#cccccc'],
+    'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+
+  map.addLayer({ id: 'track-line', type: 'line', source: 'track', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 4, 'line-opacity': .9 } });
+  map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2d8cff', 'fill-opacity': .12 } });
+  map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
+  map.addLayer({ id: 'meas-pt', type: 'circle', source: 'measure', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#ffe14d', 'circle-stroke-color': '#000', 'circle-stroke-width': 1.5 } });
+
+  drawTrack(); renderMarks(); applyLayerVis(); want();
+});
+
+function setData(id, d) { if (mapReady) map.getSource(id).setData(d); }
+let flushT = null;
+function flushTrails() {
+  clearTimeout(flushT);
+  flushT = setTimeout(() => {
+    setData('trails', { type: 'FeatureCollection', features: [...trailF.values()] });
+    setData('pois', { type: 'FeatureCollection', features: [...poiF.values()] });
+  }, 150);
+}
+
+/* ---------- Overpass: løyper og steder, flisevis med cache ---------- */
+const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
+const TZ = 8, TTL = 7 * 864e5;
+const doneT = new Set(), busyT = new Set(), failT = new Map();
+let queue = [], active = 0;
+
+function idb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('skuterkart', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('ovp');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function cacheGet(k) { try { const d = await idb(); return await new Promise(r => { const q = d.transaction('ovp').objectStore('ovp').get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); }); } catch { return null; } }
+async function cachePut(k, v) { try { const d = await idb(); d.transaction('ovp', 'readwrite').objectStore('ovp').put(v, k); } catch {} }
+async function cacheClear() { try { const d = await idb(); d.transaction('ovp', 'readwrite').objectStore('ovp').clear(); } catch {} }
+
+function tq(x, y) {
+  const s = y2lat(y + 1, TZ), n = y2lat(y, TZ), w = x2lon(x, TZ), e = x2lon(x + 1, TZ);
+  const bb = `${s.toFixed(4)},${w.toFixed(4)},${n.toFixed(4)},${e.toFixed(4)}`;
+  return `[out:json][timeout:90];(way["snowmobile"~"^(yes|designated|permissive)$"](${bb});way["piste:type"="snowmobile"](${bb}););out tags geom;` +
+         `(nwr["tourism"~"^(wilderness_hut|alpine_hut)$"](${bb});nwr["amenity"="shelter"](${bb});nwr["amenity"="fuel"](${bb}););out tags center;`;
+}
+async function ovp(q) {
+  let err;
+  for (const u of OVP) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 100000);
+    try {
+      const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e) { err = e; } finally { clearTimeout(t); }
+  }
+  throw err;
+}
+function ingest(j) {
+  for (const el of j.elements || []) {
+    const t = el.tags || {};
+    if (el.type === 'way' && el.geometry && (t.snowmobile || t['piste:type'] === 'snowmobile')) {
+      trailF.set('w' + el.id, { type: 'Feature', properties: {
+        osm: 'way/' + el.id, name: t.name || '', ref: t.ref || '', sn: t.snowmobile || 'designated',
+        op: t.operator || '', desc: t.description || t.note || '', web: t.website || '' },
+        geometry: { type: 'LineString', coordinates: el.geometry.map(g => [g.lon, g.lat]) } });
+    } else if (!el.geometry) {
+      const kind = /^(wilderness_hut|alpine_hut)$/.test(t.tourism) ? 'hut' : t.amenity === 'shelter' ? 'shelter' : t.amenity === 'fuel' ? 'fuel' : null;
+      const c = el.type === 'node' ? [el.lon, el.lat] : el.center ? [el.center.lon, el.center.lat] : null;
+      if (kind && c) poiF.set(el.type[0] + el.id, { type: 'Feature', properties: {
+        osm: el.type + '/' + el.id, kind, name: t.name || '', op: t.operator || '', desc: t.description || t.note || '',
+        web: t.website || '', ele: t.ele || '', beds: t.beds || '' }, geometry: { type: 'Point', coordinates: c } });
+    }
+  }
+}
+async function loadTile(k) {
+  const [x, y] = k.split('/').map(Number);
+  const c = await cacheGet(k);
+  if (c && Date.now() - c.t < TTL) { ingest(c.d); return true; }
+  try {
+    const d = await ovp(tq(x, y));
+    ingest(d); cachePut(k, { t: Date.now(), d });
+    return true;
+  } catch {
+    if (c) { ingest(c.d); return true; }
+    failT.set(k, Date.now());
+    return false;
+  }
+}
+function pump() {
+  while (active < 2 && queue.length) {
+    const k = queue.shift();
+    busyT.add(k); active++;
+    loadTile(k).then(ok => { if (ok) doneT.add(k); }).finally(() => { busyT.delete(k); active--; flushTrails(); status(); pump(); });
+  }
+  status();
+}
+function viewTiles() {
+  const b = map.getBounds(), out = [];
+  const x0 = Math.floor(lon2x(b.getWest(), TZ)), x1 = Math.floor(lon2x(b.getEast(), TZ));
+  const y0 = Math.floor(lat2y(b.getNorth(), TZ)), y1 = Math.floor(lat2y(b.getSouth(), TZ));
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push(x + '/' + y);
+  return out;
+}
+function want() {
+  if (!mapReady) return;
+  if (!$('#l-trails').checked && !$('#l-pois').checked) { queue = []; return status(); }
+  if (map.getZoom() < 7) { queue = []; return status(); }
+  const now = Date.now();
+  queue = viewTiles().filter(k => !doneT.has(k) && !busyT.has(k) && !(failT.has(k) && now - failT.get(k) < 30000)).slice(0, 30);
+  pump();
+}
+map.on('moveend', want);
+
+/* ---------- status / HUD ---------- */
+let extra = '';
+function status() {
+  const parts = [];
+  if (map.getZoom() < 7 && ($('#l-trails').checked || $('#l-pois').checked)) parts.push('Zoom inn for å laste løyper');
+  else if (active || queue.length) parts.push(`Laster løyper … (${active + queue.length})`);
+  else if (navigator.onLine === false && viewTiles().some(k => !doneT.has(k))) parts.push('Offline – ingen lagrede løyper her');
+  if (lastFix) parts.push(`${Math.round((lastFix.speed || 0) * 3.6)} km/t`);
+  if (recording) parts.push('● ' + fmtKm(trackLen()));
+  if (extra) parts.push(extra);
+  const hud = $('#hud');
+  hud.textContent = parts.join('  ·  ');
+  hud.style.display = parts.length ? 'block' : 'none';
+}
+window.addEventListener('online', want);
+window.addEventListener('offline', status);
+
+/* ---------- popup ---------- */
+const wxText = c => c === 0 ? 'Klart' : c <= 3 ? 'Delvis skyet' : c <= 48 ? 'Tåke' : c <= 57 ? 'Yr' : c <= 67 ? 'Regn' : c <= 77 ? 'Snø' : c <= 82 ? 'Regnbyger' : c <= 86 ? 'Snøbyger' : 'Torden';
+const compass = d => ['N', 'NØ', 'Ø', 'SØ', 'S', 'SV', 'V', 'NV'][Math.round(d / 45) % 8];
+async function weather(ll, box) {
+  box.textContent = 'Henter vær …';
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${ll.lat.toFixed(4)}&longitude=${ll.lng.toFixed(4)}&current=temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&hourly=snow_depth&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    const c = j.current, i = j.hourly.time.indexOf(c.time.slice(0, 13) + ':00');
+    const sd = i >= 0 ? j.hourly.snow_depth[i] : null;
+    box.textContent = `${wxText(c.weather_code)}, ${Math.round(c.temperature_2m)}°C · vind ${compass(c.wind_direction_10m)} ${Math.round(c.wind_speed_10m)} m/s (kast ${Math.round(c.wind_gusts_10m)}) · snødybde ${sd == null ? '–' : Math.round(sd * 100) + ' cm'} · ca ${Math.round(j.elevation)} moh`;
+  } catch { box.textContent = 'Kunne ikke hente vær (offline?)'; }
+}
+function popupAt(ll, f) {
+  const el = h('div', { class: 'pp' });
+  if (f) {
+    const p = f.properties, isPoi = f.layer.id === 'poi-c';
+    const [ic, lbl] = isPoi ? (KINDS[p.kind] || ['', 'Sted']) : ['🛷', 'Skuterløype'];
+    el.append(h('h4', {}, `${ic} ${p.name || p.ref || p.label || lbl}`));
+    const line = t => t && el.append(h('div', { class: 'm' }, t));
+    if (p.name || p.ref) line(lbl + (p.ref && p.name ? ' · ' + p.ref : ''));
+    if (p.sn) line('Status i OSM: ' + p.sn);
+    if (p.op) line('Drift: ' + p.op);
+    if (p.ele) line('Høyde: ' + p.ele + ' m');
+    if (p.beds) line('Senger: ' + p.beds);
+    if (p.desc) line(p.desc);
+    if (p.web && /^https?:\/\//.test(p.web)) el.append(h('a', { class: 'b', href: p.web, target: '_blank', rel: 'noopener' }, 'Nettside'));
+    if (p.osm) el.append(h('a', { class: 'b', href: 'https://www.openstreetmap.org/' + p.osm, target: '_blank', rel: 'noopener' }, 'OSM'));
+  }
+  el.append(h('div', { class: 'm' }, `${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`));
+  const wx = h('div', { class: 'wx', style: 'display:none' });
+  const pop = new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(ll).setDOMContent(el).addTo(map);
+  el.append(
+    h('button', { onclick: () => { openDlg(ll); pop.remove(); } }, '＋ Markør'),
+    h('button', { onclick: () => { wx.style.display = 'block'; weather(ll, wx); } }, '☁ Vær'),
+    h('button', { onclick: () => { navigator.clipboard?.writeText(`${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`); } }, 'Kopier'),
+    wx
+  );
+}
+map.on('click', e => {
+  if (measuring) return addMeasure(e.lngLat);
+  const pad = 9, layers = ['poi-c', 'trail-line', 'gpx-pt', 'gpx-line'].filter(l => map.getLayer(l));
+  const f = map.queryRenderedFeatures([[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]], { layers });
+  popupAt(e.lngLat, f[0]);
+});
+map.on('mousemove', e => {
+  const f = map.queryRenderedFeatures([[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]], { layers: ['poi-c', 'trail-line'].filter(l => map.getLayer(l)) });
+  map.getCanvas().style.cursor = measuring ? 'crosshair' : f.length ? 'pointer' : '';
+});
+
+/* ---------- egne markører ---------- */
+let mkObjs = [];
+function renderMarks() {
+  mkObjs.forEach(m => m.remove()); mkObjs = [];
+  if (!$('#l-marks').checked) return;
+  for (const m of marks) {
+    const [ic, lbl] = KINDS[m.type] || KINDS.note;
+    const el = h('div', { class: 'mk', title: lbl }, ic);
+    el.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const box = h('div', { class: 'pp' }, h('h4', {}, `${ic} ${lbl}`));
+      if (m.text) box.append(h('div', { class: 'm' }, m.text));
+      box.append(h('div', { class: 'm' }, new Date(m.ts).toLocaleString('nb-NO')));
+      const pop = new maplibregl.Popup({ offset: 18 }).setLngLat([m.lon, m.lat]).setDOMContent(box).addTo(map);
+      box.append(h('button', { onclick: () => { if (confirm('Slette markøren?')) { marks = marks.filter(x => x.id !== m.id); LS.set('sk_marks', marks); renderMarks(); pop.remove(); } } }, '🗑 Slett'));
+    });
+    mkObjs.push(new maplibregl.Marker({ element: el }).setLngLat([m.lon, m.lat]).addTo(map));
+  }
+}
+let dlgLL = null;
+const dlg = $('#dlg');
+$('#d-type').append(...MARK_TYPES.map(k => h('option', { value: k }, KINDS[k][0] + ' ' + KINDS[k][1])));
+function openDlg(ll) { dlgLL = ll; $('#d-text').value = ''; dlg.showModal(); }
+dlg.addEventListener('close', () => {
+  if (dlg.returnValue !== 'ok' || !dlgLL) return;
+  marks.push({ id: Date.now() + '' + Math.random().toString(36).slice(2, 6), type: $('#d-type').value, text: $('#d-text').value.trim(), lat: dlgLL.lat, lon: dlgLL.lng, ts: Date.now() });
+  LS.set('sk_marks', marks); renderMarks();
+});
+
+/* ---------- GPS og sporopptak ---------- */
+function circle(lon, lat, r) {
+  const pts = [];
+  for (let i = 0; i <= 48; i++) {
+    const a = i / 48 * 2 * Math.PI;
+    pts.push([lon + r * Math.cos(a) / (111320 * Math.cos(rad(lat))), lat + r * Math.sin(a) / 110540]);
+  }
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [pts] } };
+}
+const gpsEl = h('div', { class: 'gps' });
+const gpsMk = new maplibregl.Marker({ element: gpsEl });
+function onFix(p) {
+  const { latitude: lat, longitude: lon, accuracy, speed } = p.coords;
+  lastFix = { lat, lon, speed };
+  gpsMk.setLngLat([lon, lat]).addTo(map);
+  setData('acc', { type: 'FeatureCollection', features: [circle(lon, lat, accuracy)] });
+  if (following) map.easeTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12), duration: 600 });
+  if (recording && accuracy < 60) {
+    const last = track[track.length - 1];
+    if (!last || dist([last[0], last[1]], [lon, lat]) > 8) {
+      track.push([lon, lat, p.timestamp]);
+      if (track.length % 10 === 0) LS.set('sk_track', track);
+      drawTrack();
+    }
+  }
+  status();
+}
+function startGps() {
+  if (!navigator.geolocation) return alert('Enheten støtter ikke posisjon.');
+  if (watchId === null) watchId = navigator.geolocation.watchPosition(onFix, e => { extra = 'Posisjon: ' + e.message; status(); }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+}
+$('#b-loc').onclick = () => {
+  startGps();
+  following = !following;
+  $('#b-loc').classList.toggle('on', following);
+  if (following && lastFix) map.easeTo({ center: [lastFix.lon, lastFix.lat], zoom: Math.max(map.getZoom(), 12) });
+};
+map.on('dragstart', () => { if (following) { following = false; $('#b-loc').classList.remove('on'); } });
+$('#b-rec').onclick = () => {
+  recording = !recording;
+  $('#b-rec').classList.toggle('on', recording);
+  if (recording) { startGps(); } else LS.set('sk_track', track);
+  status();
+};
+function trackLen() { let d = 0; for (let i = 1; i < track.length; i++) d += dist(track[i - 1], track[i]); return d; }
+function drawTrack() {
+  setData('track', { type: 'FeatureCollection', features: track.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: track.map(t => [t[0], t[1]]) } }] : [] });
+}
+
+/* ---------- måling ---------- */
+function addMeasure(ll) { mpts.push([ll.lng, ll.lat]); drawMeasure(); }
+function drawMeasure() {
+  const f = mpts.map(c => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } }));
+  if (mpts.length > 1) f.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mpts } });
+  setData('measure', { type: 'FeatureCollection', features: f });
+  let d = 0; for (let i = 1; i < mpts.length; i++) d += dist(mpts[i - 1], mpts[i]);
+  extra = measuring ? `Måling: ${fmtKm(d)} (trykk 📏 for å avslutte)` : '';
+  status();
+}
+$('#b-meas').onclick = () => {
+  measuring = !measuring; mpts = [];
+  $('#b-meas').classList.toggle('on', measuring);
+  drawMeasure();
+};
+
+/* ---------- søk ---------- */
+let qT = null;
+$('#q').addEventListener('input', e => {
+  clearTimeout(qT);
+  const v = e.target.value.trim(), box = $('#res');
+  if (v.length < 3) { box.style.display = 'none'; return; }
+  qT = setTimeout(async () => {
+    try {
+      const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=no,se&accept-language=nb&q=${encodeURIComponent(v)}`)).json();
+      box.replaceChildren(...j.map(r => h('div', { onclick: () => {
+        box.style.display = 'none'; $('#q').value = r.display_name.split(',')[0];
+        if (r.boundingbox) map.fitBounds([[+r.boundingbox[2], +r.boundingbox[0]], [+r.boundingbox[3], +r.boundingbox[1]]], { maxZoom: 13, duration: 900 });
+        else map.flyTo({ center: [+r.lon, +r.lat], zoom: 12 });
+      } }, r.display_name)));
+      box.style.display = j.length ? 'block' : 'none';
+    } catch { box.style.display = 'none'; }
+  }, 350);
+});
+document.addEventListener('click', e => { if (!e.target.closest('#top')) $('#res').style.display = 'none'; });
+
+/* ---------- panel / lag ---------- */
+const panel = $('#panel');
+$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; };
+$('#p-close').onclick = () => { panel.hidden = true; };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });
+for (const [k, b] of Object.entries(BASES)) {
+  $('#bases').append(h('label', {}, h('input', { type: 'radio', name: 'base', value: k, ...(k === curBase ? { checked: '' } : {}), onchange: () => {
+    curBase = k; LS.set('sk_base', k);
+    for (const kk of Object.keys(BASES)) map.setLayoutProperty('b_' + kk, 'visibility', kk === k ? 'visible' : 'none');
+  } }), b.name));
+}
+function applyLayerVis() {
+  const v = id => ($(id).checked ? 'visible' : 'none');
+  const set = (ids, vis) => ids.forEach(i => map.getLayer(i) && map.setLayoutProperty(i, 'visibility', vis));
+  set(['trail-casing', 'trail-line'], v('#l-trails'));
+  set(['poi-c'], v('#l-pois'));
+  set(['track-line'], v('#l-track'));
+  set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
+  renderMarks();
+}
+['#l-trails', '#l-pois', '#l-marks', '#l-track', '#l-gpx'].forEach(id => $(id).addEventListener('change', () => { applyLayerVis(); want(); }));
+$('#t-add').onclick = () => { panel.hidden = true; openDlg(map.getCenter()); };
+
+/* ---------- GPX eksport / import ---------- */
+function download(name, text) {
+  const a = h('a', { href: URL.createObjectURL(new Blob([text], { type: 'application/gpx+xml' })), download: name });
+  document.body.append(a); a.click(); a.remove();
+}
+const gpxHead = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Skuterkart" xmlns="http://www.topografix.com/GPX/1/1">\n';
+$('#t-exp-track').onclick = () => {
+  if (track.length < 2) return alert('Ingen spor å eksportere.');
+  const pts = track.map(t => `<trkpt lat="${t[1]}" lon="${t[0]}"><time>${new Date(t[2]).toISOString()}</time></trkpt>`).join('\n');
+  download('spor-' + new Date().toISOString().slice(0, 10) + '.gpx', gpxHead + `<trk><name>Skuterkart ${new Date().toLocaleDateString('nb-NO')}</name><trkseg>\n${pts}\n</trkseg></trk>\n</gpx>`);
+};
+$('#t-clr-track').onclick = () => { if (confirm('Slette hele sporet?')) { track = []; LS.set('sk_track', track); drawTrack(); } };
+$('#t-exp-marks').onclick = () => {
+  if (!marks.length) return alert('Ingen markører å eksportere.');
+  const w = marks.map(m => `<wpt lat="${m.lat}" lon="${m.lon}"><name>${esc(KINDS[m.type][1])}</name><desc>${esc(m.text)}</desc><time>${new Date(m.ts).toISOString()}</time></wpt>`).join('\n');
+  download('markorer.gpx', gpxHead + w + '\n</gpx>');
+};
+$('#t-imp').onclick = () => $('#gpxfile').click();
+$('#gpxfile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const d = new DOMParser().parseFromString(await f.text(), 'application/xml');
+  const feats = [], all = [];
+  const pt = p => { const c = [+p.getAttribute('lon'), +p.getAttribute('lat')]; all.push(c); return c; };
+  d.querySelectorAll('trkseg').forEach(s => { const c = [...s.querySelectorAll('trkpt')].map(pt); if (c.length > 1) feats.push({ type: 'Feature', properties: { name: f.name }, geometry: { type: 'LineString', coordinates: c } }); });
+  d.querySelectorAll('rte').forEach(s => { const c = [...s.querySelectorAll('rtept')].map(pt); if (c.length > 1) feats.push({ type: 'Feature', properties: { name: f.name }, geometry: { type: 'LineString', coordinates: c } }); });
+  d.querySelectorAll('wpt').forEach(p => feats.push({ type: 'Feature', properties: { name: p.querySelector('name')?.textContent || '' }, geometry: { type: 'Point', coordinates: pt(p) } }));
+  e.target.value = '';
+  if (!feats.length) return alert('Fant ingen spor eller punkter i filen.');
+  setData('gpx', { type: 'FeatureCollection', features: feats });
+  const b = all.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(all[0], all[0]));
+  map.fitBounds(b, { padding: 60, duration: 900 });
+  panel.hidden = true;
+});
+$('#t-clr-gpx').onclick = () => setData('gpx', empty());
+
+/* ---------- offline ---------- */
+const TILE_CACHE = 'sk-tiles-v1';
+function tileUrl(b, z, x, y) { return b.tiles[0].replace('{z}', z).replace('{x}', x).replace('{y}', y); }
+$('#t-off').onclick = async () => {
+  if (!('caches' in window)) return alert('Offline-lager støttes ikke her.');
+  const info = $('#off-info'), b = BASES[curBase], bn = map.getBounds();
+  const z0 = Math.floor(map.getZoom()) + 1;
+  let zmax = Math.min(z0 + 3, b.max), urls = [];
+  const build = zm => {
+    const u = [];
+    for (let z = z0; z <= zm; z++) {
+      const x0 = Math.floor(lon2x(bn.getWest(), z)), x1 = Math.floor(lon2x(bn.getEast(), z));
+      const y0 = Math.floor(lat2y(bn.getNorth(), z)), y1 = Math.floor(lat2y(bn.getSouth(), z));
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) u.push(tileUrl(b, z, x, y));
+    }
+    return u;
+  };
+  urls = build(zmax);
+  while (urls.length > 800 && zmax > z0) urls = build(--zmax);
+  if (urls.length > 800) return alert('Området er for stort. Zoom lenger inn og prøv igjen.');
+  if (!confirm(`Laster ned ${urls.length} kartfliser (zoom ${z0}–${zmax}) fra «${b.name}». Fortsette?`)) return;
+  const cache = await caches.open(TILE_CACHE);
+  let n = 0, fail = 0;
+  want(); // løyper i synlig område
+  const worker = async () => {
+    while (urls.length) {
+      const u = urls.pop();
+      try { if (!(await cache.match(u, { ignoreVary: true }))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); else fail++; } } catch { fail++; }
+      n++; info.textContent = `Laster ned … ${n}`;
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  info.textContent = `Ferdig. ${n - fail} fliser lagret${fail ? `, ${fail} feilet` : ''}. Løypene i området lagres automatisk.`;
+};
+$('#t-clr-cache').onclick = async () => {
+  if (!confirm('Tømme alle lagrede kartfliser og løypedata?')) return;
+  await caches.delete(TILE_CACHE); await cacheClear();
+  doneT.clear(); trailF.clear(); poiF.clear(); flushTrails(); want();
+  $('#off-info').textContent = 'Offline-lager tømt.';
+};
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
