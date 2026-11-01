@@ -255,7 +255,7 @@ let queue = [], active = 0;
 
 function idb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('skuterkart', 1);
+    const r = indexedDB.open('skuterkart2', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('ovp');
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -278,7 +278,10 @@ async function ovp(q) {
     try {
       const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.json();
+      const j = await r.json();
+      if (j.remark && /error|timed out|out of memory|too busy/i.test(j.remark)) throw new Error(String(j.remark).slice(0, 70));
+      if (!Array.isArray(j.elements)) throw new Error('ugyldig svar');
+      return j;
     } catch (e) { err = e; } finally { clearTimeout(t); }
   }
   throw err;
