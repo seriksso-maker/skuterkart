@@ -28,9 +28,9 @@ button,select,input,textarea{font:inherit;color:inherit}
 .fab.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .fab.rec.on{background:var(--bad);border-color:var(--bad)}
 #hud{position:absolute;left:10px;bottom:calc(34px + env(safe-area-inset-bottom));z-index:4;background:#0f1720cc;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;display:none;max-width:70vw;backdrop-filter:blur(6px)}
-#bmenu{position:absolute;z-index:9;right:70px;bottom:calc(70px + env(safe-area-inset-bottom));width:min(290px,calc(100% - 84px));max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px #0009}
-#bmenu[hidden]{display:none}
-#bmenu label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
+#bmenu,#rmenu{position:absolute;z-index:9;right:70px;bottom:calc(70px + env(safe-area-inset-bottom));width:min(290px,calc(100% - 84px));max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px #0009}
+#bmenu[hidden],#rmenu[hidden]{display:none}
+#bmenu label,#rmenu label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
 #panel{position:absolute;z-index:8;right:0;top:0;bottom:0;width:min(360px,100%);background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));box-shadow:-8px 0 30px #0008}
 #panel[hidden]{display:none}
 #panel h3{margin:18px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
@@ -69,7 +69,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   .fab{width:42px;height:42px;font-size:18px}
   .maplibregl-ctrl-top-right{display:none}
   #hud{bottom:26px;font-size:12px;padding:4px 8px}
-  #bmenu{bottom:8px;max-height:calc(100% - 16px);right:calc(66px + env(safe-area-inset-right));width:min(300px,50vw)}
+  #bmenu,#rmenu{bottom:8px;max-height:calc(100% - 16px);right:calc(66px + env(safe-area-inset-right));width:min(300px,50vw)}
   #panel{padding-top:10px;width:min(360px,50vw)}
   .pp{font-size:12px}
 }
@@ -78,9 +78,23 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   #top{max-width:460px}
   #q{font-size:16px;padding:13px 16px}
   #panel{width:400px}
-  #bmenu{right:84px}
+  #bmenu,#rmenu{right:84px}
   .maplibregl-popup-content{font-size:14px}
 }
+
+#rmenu{width:min(350px,calc(100% - 84px))}
+.rrow{display:flex;gap:6px;align-items:center;margin:8px 0}
+.rrow input[type=text],.rrow input[type=search]{flex:1;min-width:0;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:#0f1720;outline:none}
+.rrow input:focus{border-color:var(--acc)}
+.rrow button{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#1b2a3a;cursor:pointer;font-size:15px}
+.ab{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;border:2px solid #fff}
+#r-res div{padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+#r-res div:hover{background:#1d2c3b}
+#r-out{font-size:13px}
+#r-out ol{padding-left:20px;margin:6px 0}
+#r-out .sum{font-size:15px;font-weight:600;margin:8px 0 2px}
+#r-out .warn{color:#ffb74d}
+@media (max-height:520px){#rmenu{width:min(360px,54vw)}}
 </style>
 </head>
 <body>
@@ -95,11 +109,23 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   <button class="fab" id="b-loc" title="Min posisjon">◎</button>
   <button class="fab rec" id="b-rec" title="Ta opp spor">●</button>
   <button class="fab" id="b-meas" title="Mål avstand">📏</button>
+  <button class="fab" id="b-route" title="Rute (fra–til)">🧭</button>
   <button class="fab" id="b-map" title="Karttyper">🗺</button>
   <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
 </div>
 
 <div id="hud"></div>
+
+<aside id="rmenu" hidden>
+  <button class="x" id="rm-close">×</button>
+  <b>Rute langs skuterløyper</b>
+  <div class="rrow"><span class="ab" style="background:#00b86b">A</span><input type="search" id="r-from" placeholder="Fra: sted, koordinat …" autocomplete="off"><button id="rf-me" title="Min posisjon">◎</button><button id="rf-pick" title="Velg på kartet">✛</button></div>
+  <div class="rrow"><span class="ab" style="background:#e53935">B</span><input type="search" id="r-to" placeholder="Til: sted, koordinat …" autocomplete="off"><button id="rt-me" title="Min posisjon">◎</button><button id="rt-pick" title="Velg på kartet">✛</button></div>
+  <div id="r-res"></div>
+  <label><input type="checkbox" id="r-pref" checked> Foretrekk merkede løyper</label>
+  <button class="btn" id="r-go">🧭 Finn korteste rute</button>
+  <div id="r-out"></div>
+</aside>
 
 <aside id="bmenu" hidden>
   <button class="x" id="bm-close">×</button>
@@ -288,7 +314,7 @@ const MARK_TYPES = ['warn', 'fuel', 'shelter', 'hut', 'parking', 'cafe', 'camp',
 /* ---------- kartlag ---------- */
 map.on('load', () => {
   mapReady = true;
-  for (const id of ['trails', 'pois', 'track', 'measure', 'acc', 'gpx']) map.addSource(id, { type: 'geojson', data: empty() });
+  for (const id of ['trails', 'pois', 'track', 'measure', 'acc', 'gpx', 'route']) map.addSource(id, { type: 'geojson', data: empty() });
 
   map.addLayer({ id: 'gpx-line', type: 'line', source: 'gpx', filter: ['==', '$type', 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 3, 'line-opacity': .85 } });
   map.addLayer({ id: 'gpx-pt', type: 'circle', source: 'gpx', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#2d8cff', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
@@ -303,6 +329,9 @@ map.on('load', () => {
     'circle-color': ['match', ['get', 'kind'], 'hut', '#9b59ff', 'shelter', '#2ecc71', 'fuel', '#ff3b3b', '#cccccc'],
     'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
 
+  map.addLayer({ id: 'route-conn', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'conn'], paint: { 'line-color': '#00e676', 'line-width': 3, 'line-dasharray': [1.5, 1.5] } });
+  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#0b3d2a', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 5, 12, 10] } });
+  map.addLayer({ id: 'route-line', type: 'line', source: 'route', filter: ['==', ['get', 'k'], 'route'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#00e676', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 3, 12, 6] } });
   const FONT = ['Noto Sans Bold'];
   map.addLayer({ id: 'trail-label', type: 'symbol', source: 'trails', minzoom: 10.5,
     filter: ['any', ['!=', ['get', 'name'], ''], ['!=', ['get', 'ref'], '']],
@@ -354,10 +383,10 @@ function tq(x, y) {
   return `[out:json][timeout:90];(way["snowmobile"~"^(yes|designated|permissive)$"](${bb});way["piste:type"="snowmobile"](${bb}););out tags geom;` +
          `(nwr["tourism"~"^(wilderness_hut|alpine_hut)$"](${bb});nwr["amenity"="shelter"](${bb});nwr["amenity"="fuel"](${bb}););out tags center;`;
 }
-async function ovp(q) {
+async function ovp(q, ms = 100000) {
   let err;
   for (const u of OVP) {
-    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 100000);
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
     try {
       const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal });
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -481,12 +510,15 @@ function popupAt(ll, f) {
   const pop = new maplibregl.Popup({ maxWidth: '280px' }).setLngLat(ll).setDOMContent(el).addTo(map);
   el.append(
     h('button', { onclick: () => { openDlg(ll); pop.remove(); } }, '＋ Markør'),
+    h('button', { onclick: () => { setPoint('from', ll); openRoute(); pop.remove(); } }, 'A Fra her'),
+    h('button', { onclick: () => { setPoint('to', ll); openRoute(); pop.remove(); } }, 'B Til hit'),
     h('button', { onclick: () => { wx.style.display = 'block'; weather(ll, wx); } }, '☁ Vær'),
     h('button', { onclick: () => { navigator.clipboard?.writeText(`${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`); } }, 'Kopier'),
     wx
   );
 }
 map.on('click', e => {
+  if (R.pick) { const w = R.pick; R.pick = null; extra = ''; setPoint(w, e.lngLat); status(); $('#rmenu').hidden = false; return; }
   if (measuring) return addMeasure(e.lngLat);
   const pad = 9, layers = ['poi-c', 'trail-line', 'gpx-pt', 'gpx-line'].filter(l => map.getLayer(l));
   const f = map.queryRenderedFeatures([[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]], { layers });
@@ -551,6 +583,7 @@ function onFix(p) {
       drawTrack();
     }
   }
+  if (R.nav) navTick();
   status();
 }
 let wl = null;
@@ -627,11 +660,11 @@ for (const [n, c] of JUMPS) $('#jump').append(h('button', { class: 'btn sm', onc
 
 /* ---------- panel / lag ---------- */
 const panel = $('#panel');
-$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; $('#bmenu').hidden = true; };
-$('#b-map').onclick = () => { $('#bmenu').hidden = !$('#bmenu').hidden; panel.hidden = true; };
+$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; $('#bmenu').hidden = true; $('#rmenu').hidden = true; };
+$('#b-map').onclick = () => { $('#bmenu').hidden = !$('#bmenu').hidden; panel.hidden = true; $('#rmenu').hidden = true; };
 $('#bm-close').onclick = () => { $('#bmenu').hidden = true; };
 $('#p-close').onclick = () => { panel.hidden = true; };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; $('#bmenu').hidden = true; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; $('#bmenu').hidden = true; $('#rmenu').hidden = true; } });
 for (const [k, b] of Object.entries(BASES)) {
   $('#bases').append(h('label', {}, h('input', { type: 'radio', name: 'base', value: k, ...(k === curBase ? { checked: '' } : {}), onchange: () => {
     curBase = k; LS.set('sk_base', k);
@@ -738,6 +771,246 @@ $('#t-clr-cache').onclick = async () => {
   doneT.clear(); trailF.clear(); poiF.clear(); flushTrails(); want();
   $('#off-info').textContent = 'Offline-lager tømt.';
 };
+
+/* ---------- Rute: graf og kortest vei ---------- */
+function buildGraph(feats, pref) {
+  const idx = new Map(), pts = [], adj = [];
+  const node = c => {
+    const k = c[0].toFixed(6) + ',' + c[1].toFixed(6);
+    let i = idx.get(k);
+    if (i === undefined) { i = pts.length; idx.set(k, i); pts.push(c); adj.push([]); }
+    return i;
+  };
+  const FAC = { designated: 1, yes: 1.2, permissive: 1.5 };
+  for (const f of feats) {
+    const c = f.geometry.coordinates, fac = pref ? (FAC[f.properties.sn] || 1.2) : 1;
+    let prev = node(c[0]);
+    for (let i = 1; i < c.length; i++) {
+      const cur = node(c[i]);
+      if (cur === prev) continue;
+      const len = dist(c[i - 1], c[i]);
+      adj[prev].push({ to: cur, w: len * fac, len, way: f.properties });
+      adj[cur].push({ to: prev, w: len * fac, len, way: f.properties });
+      prev = cur;
+    }
+  }
+  return { pts, adj };
+}
+function components(g) {
+  const n = g.pts.length, comp = new Int32Array(n).fill(-1), size = [];
+  let c = 0;
+  for (let s = 0; s < n; s++) {
+    if (comp[s] >= 0) continue;
+    let cnt = 0; const st = [s]; comp[s] = c;
+    while (st.length) {
+      const u = st.pop(); cnt++;
+      for (const e of g.adj[u]) if (comp[e.to] < 0) { comp[e.to] = c; st.push(e.to); }
+    }
+    size.push(cnt); c++;
+  }
+  return { comp, size };
+}
+function nearestNode(g, cc, p, minSize) {
+  const k = Math.cos(rad(p.lat));
+  let best = -1, bd = Infinity;
+  for (let pass = 0; pass < 2 && best < 0; pass++) {
+    for (let i = 0; i < g.pts.length; i++) {
+      if (pass === 0 && cc.size[cc.comp[i]] < minSize) continue;
+      const dx = (g.pts[i][0] - p.lng) * k, dy = g.pts[i][1] - p.lat, dd = dx * dx + dy * dy;
+      if (dd < bd) { bd = dd; best = i; }
+    }
+  }
+  return best < 0 ? null : { i: best, m: dist([p.lng, p.lat], g.pts[best]) };
+}
+function dijkstra(g, s, t) {
+  if (s === t) return [];
+  const n = g.pts.length, d = new Float64Array(n).fill(Infinity), pe = new Array(n).fill(null), pn = new Int32Array(n).fill(-1);
+  const heap = [[0, s]]; d[s] = 0;
+  const push = it => { heap.push(it); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last; let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]]; i = m;
+      }
+    }
+    return top;
+  };
+  while (heap.length) {
+    const [du, u] = pop();
+    if (du > d[u]) continue;
+    if (u === t) break;
+    for (const e of g.adj[u]) {
+      const nd = du + e.w;
+      if (nd < d[e.to]) { d[e.to] = nd; pn[e.to] = u; pe[e.to] = e; push([nd, e.to]); }
+    }
+  }
+  if (!isFinite(d[t])) return null;
+  const path = [];
+  for (let v = t; v !== s; v = pn[v]) path.push({ v, e: pe[v] });
+  return path.reverse();
+}
+function buildRoute(g, s, path) {
+  const coords = [g.pts[s]], cum = [0], steps = [];
+  let total = 0;
+  for (const { v, e } of path) {
+    coords.push(g.pts[v]); total += e.len; cum.push(total);
+    const label = e.way.name || e.way.ref || 'Skuterløype';
+    const last = steps[steps.length - 1];
+    if (last && last.label === label) { last.len += e.len; last.end = total; }
+    else steps.push({ label, len: e.len, start: total - e.len, end: total });
+  }
+  return { coords, cum, steps, total };
+}
+
+/* ---------- Rute: brukerflate ---------- */
+const R = { from: null, to: null, pick: null, route: null, nav: false, mk: {} };
+const SPEED = 40; // km/t, antatt snittfart til tidsestimat
+const fmtT = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' t ' + String(m % 60).padStart(2, '0') + ' min'; };
+function openRoute() { $('#rmenu').hidden = false; panel.hidden = true; $('#bmenu').hidden = true; }
+$('#b-route').onclick = () => { if ($('#rmenu').hidden) openRoute(); else $('#rmenu').hidden = true; };
+$('#rm-close').onclick = () => { $('#rmenu').hidden = true; };
+function outMsg(t, warn) { $('#r-out').replaceChildren(h('div', { class: warn ? 'warn' : '' }, t)); }
+
+function setPoint(which, ll, label) {
+  R[which] = { lng: ll.lng, lat: ll.lat };
+  $('#r-' + which).value = label || `${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}`;
+  if (R.mk[which]) R.mk[which].remove();
+  const el = h('div', { class: 'ab', style: 'background:' + (which === 'from' ? '#00b86b' : '#e53935') + ';box-shadow:0 2px 6px #0008' }, which === 'from' ? 'A' : 'B');
+  R.mk[which] = new maplibregl.Marker({ element: el }).setLngLat([ll.lng, ll.lat]).addTo(map);
+}
+function pickOnMap(which) {
+  R.pick = which; $('#rmenu').hidden = true;
+  extra = 'Trykk på kartet for å velge ' + (which === 'from' ? 'start (A)' : 'mål (B)'); status();
+}
+function myPos(which) {
+  outMsg('Henter posisjon …');
+  navigator.geolocation.getCurrentPosition(
+    p => { setPoint(which, { lat: p.coords.latitude, lng: p.coords.longitude }, 'Min posisjon'); outMsg(''); },
+    e => outMsg('Fikk ikke posisjon: ' + e.message, true),
+    { enableHighAccuracy: true, timeout: 20000 });
+}
+async function geoSearch(which) {
+  const q = $('#r-' + which).value.trim(), box = $('#r-res');
+  if (q.length < 2) return;
+  const m = q.match(/^\s*(-?\d+(?:[.,]\d+)?)\s*[;, ]\s*(-?\d+(?:[.,]\d+)?)\s*$/);
+  if (m) { const lat = +m[1].replace(',', '.'), lng = +m[2].replace(',', '.'); setPoint(which, { lat, lng }); map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 10) }); box.replaceChildren(); return; }
+  box.textContent = 'Søker …';
+  try {
+    const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=se&accept-language=sv&q=${encodeURIComponent(q)}`)).json();
+    box.replaceChildren(...(j.length ? j.map(r => h('div', { onclick: () => {
+      setPoint(which, { lat: +r.lat, lng: +r.lon }, r.display_name.split(',').slice(0, 2).join(','));
+      box.replaceChildren(); map.flyTo({ center: [+r.lon, +r.lat], zoom: Math.max(map.getZoom(), 10) });
+    } }, r.display_name)) : [h('div', {}, 'Ingen treff')]));
+  } catch { box.textContent = 'Søk feilet (offline?)'; }
+}
+for (const w of ['from', 'to']) {
+  $('#r-' + w).addEventListener('keydown', e => { if (e.key === 'Enter') geoSearch(w); });
+  $('#r' + (w === 'from' ? 'f' : 't') + '-me').onclick = () => myPos(w);
+  $('#r' + (w === 'from' ? 'f' : 't') + '-pick').onclick = () => pickOnMap(w);
+}
+
+async function findRoute() {
+  if (!R.from || !R.to) return outMsg('Velg både start (A) og mål (B). Skriv et sted og trykk Enter, bruk ◎ eller ✛.', true);
+  const f = R.from, t = R.to;
+  const lat0 = Math.min(f.lat, t.lat), lat1 = Math.max(f.lat, t.lat), lon0 = Math.min(f.lng, t.lng), lon1 = Math.max(f.lng, t.lng);
+  const span = Math.max(lat1 - lat0, (lon1 - lon0) * 0.45), mg = Math.max(0.15, span * 0.3);
+  const bb = [lat0 - mg, lon0 - mg * 2, lat1 + mg, lon1 + mg * 2];
+  if ((bb[2] - bb[0]) * (bb[3] - bb[1]) > 14) return outMsg('Ruta er for lang for én beregning. Del den i etapper (velg et mellompunkt).', true);
+  outMsg('Laster løyper i området … (kan ta opptil et minutt)');
+  const key = 'r:' + bb.map(v => v.toFixed(2)).join(',');
+  let data = await cacheGet(key);
+  if (!data || Date.now() - data.t > TTL) {
+    try {
+      const b = bb.map(v => v.toFixed(4)).join(',');
+      const q = `[out:json][timeout:180];(way["snowmobile"~"^(yes|designated|permissive)$"](${b});way["piste:type"="snowmobile"](${b}););out tags geom;`;
+      const d = await ovp(q, 170000);
+      data = { t: Date.now(), d }; cachePut(key, data);
+    } catch (e) {
+      if (!data) return outMsg('Kunne ikke hente løyper (' + ((e && e.message) || 'feil') + '). Prøv igjen om litt.', true);
+    }
+  }
+  const feats = [];
+  for (const el of data.d.elements || []) {
+    if (el.type !== 'way' || !el.geometry || el.geometry.length < 2) continue;
+    const tg = el.tags || {};
+    feats.push({ properties: { sn: tg.snowmobile || 'designated', name: tg.name || '', ref: tg.ref || '' }, geometry: { coordinates: el.geometry.map(g => [g.lon, g.lat]) } });
+  }
+  ingest(data.d); flushTrails();
+  if (!feats.length) return outMsg('Fant ingen skuterløyper i dette området.', true);
+  const g = buildGraph(feats, $('#r-pref').checked), cc = components(g);
+  const a = nearestNode(g, cc, f, 30), z = nearestNode(g, cc, t, 30);
+  const path = dijkstra(g, a.i, z.i);
+  if (!path) return outMsg('Ingen sammenhengende løype mellom A og B. Flytt punktene nærmere samme løypenett, eller velg et mellompunkt.', true);
+  const rt = buildRoute(g, a.i, path);
+  R.route = rt; R.snap = { a, z };
+  drawRoute(f, t);
+  const mins = rt.total / 1000 / SPEED * 60;
+  const out = $('#r-out'), warn = [];
+  if (a.m > 500) warn.push(`A er ${fmtKm(a.m)} fra nærmeste løype`);
+  if (z.m > 500) warn.push(`B er ${fmtKm(z.m)} fra nærmeste løype`);
+  out.replaceChildren(
+    h('div', { class: 'sum' }, `${fmtKm(rt.total)} · ca ${fmtT(mins)}`),
+    h('div', { class: 'm', style: 'color:var(--mut)' }, `Tidsestimat ved ${SPEED} km/t snittfart`),
+    ...(warn.length ? [h('div', { class: 'warn' }, '⚠ ' + warn.join('. ') + ' (stiplet linje).')] : []),
+    h('ol', {}, ...rt.steps.map(s => h('li', {}, `${s.label} – ${fmtKm(s.len)}`))),
+    h('button', { class: 'btn sm', onclick: startNav }, '▶ Start navigasjon'),
+    h('button', { class: 'btn sm', onclick: exportRoute }, '⬇ GPX'),
+    h('button', { class: 'btn sm', onclick: clearRoute }, '✕ Fjern')
+  );
+  const bds = rt.coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(rt.coords[0], rt.coords[0]));
+  map.fitBounds(bds, { padding: 70, duration: 900 });
+}
+function drawRoute(f, t) {
+  const rt = R.route, feats = [];
+  if (rt) {
+    feats.push({ type: 'Feature', properties: { k: 'route' }, geometry: { type: 'LineString', coordinates: rt.coords } });
+    feats.push({ type: 'Feature', properties: { k: 'conn' }, geometry: { type: 'LineString', coordinates: [[f.lng, f.lat], rt.coords[0]] } });
+    feats.push({ type: 'Feature', properties: { k: 'conn' }, geometry: { type: 'LineString', coordinates: [rt.coords[rt.coords.length - 1], [t.lng, t.lat]] } });
+  }
+  setData('route', { type: 'FeatureCollection', features: feats });
+}
+function clearRoute() {
+  R.route = null; R.nav = false; extra = ''; drawRoute(); status(); $('#r-out').replaceChildren();
+  for (const w of ['from', 'to']) { if (R.mk[w]) R.mk[w].remove(); R.mk[w] = null; R[w] = null; $('#r-' + w).value = ''; }
+}
+function exportRoute() {
+  const rt = R.route; if (!rt) return;
+  const pts = rt.coords.map(c => `<trkpt lat="${c[1]}" lon="${c[0]}"></trkpt>`).join('\n');
+  download('rute-' + new Date().toISOString().slice(0, 10) + '.gpx', gpxHead + `<trk><name>Skuterrute ${fmtKm(rt.total)}</name><trkseg>\n${pts}\n</trkseg></trk>\n</gpx>`);
+}
+
+/* ---------- Navigasjon langs ruta ---------- */
+function startNav() {
+  if (!R.route) return;
+  R.nav = true; startGps(); following = true; $('#b-loc').classList.add('on');
+  $('#rmenu').hidden = true;
+  extra = 'Navigasjon: venter på GPS …'; status();
+  if (lastFix) navTick();
+}
+function navTick() {
+  const rt = R.route; if (!rt || !lastFix) return;
+  const k = Math.cos(rad(lastFix.lat));
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < rt.coords.length; i++) {
+    const dx = (rt.coords[i][0] - lastFix.lon) * k, dy = rt.coords[i][1] - lastFix.lat, dd = dx * dx + dy * dy;
+    if (dd < bd) { bd = dd; bi = i; }
+  }
+  const off = dist([lastFix.lon, lastFix.lat], rt.coords[bi]), pos = rt.cum[bi], rem = rt.total - pos;
+  if (rem < 60) { extra = '🏁 Fremme!'; R.nav = false; return; }
+  const si = rt.steps.findIndex(s => s.end > pos + 1), cur = rt.steps[si < 0 ? rt.steps.length - 1 : si], nxt = rt.steps[si + 1];
+  const spd = (lastFix.speed || 0) * 3.6, v = spd > 10 ? spd : SPEED;
+  const parts = [`🧭 ${fmtKm(rem)} igjen · ca ${fmtT(rem / 1000 / v * 60)}`, `Følg ${cur.label} ${fmtKm(Math.max(0, cur.end - pos))}`];
+  if (nxt) parts.push(`deretter ${nxt.label}`);
+  if (off > 100) parts.unshift('⚠ Utenfor ruta ' + fmtKm(off));
+  extra = parts.join(' · ');
+}
+$('#r-go').onclick = findRoute;
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
