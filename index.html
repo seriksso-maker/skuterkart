@@ -228,6 +228,12 @@ const OVERLAYS = {
   hill:   { name: 'Skyggerelieff (terreng)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'], max: 15, opacity: .45, attr: '© Esri' },
   labels: { name: 'Stedsnavn (Esri) – nyttig på satellitt', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'], max: 18, opacity: 1, attr: '© Esri' }
 };
+const MY_PLACES = [
+  { n: 'Idre', c: [12.7168, 61.8584] },
+  { n: 'Särna', c: [13.1423, 61.6932] },
+  { n: 'Mörkret', c: [12.7452, 61.6538] }
+];
+const MY_NAMES = MY_PLACES.map(p => p.n);
 const DOMOV = {
   skl:     { name: 'Skuterløyper (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/tiles/{z}/{x}/{y}.png'], max: 16 },
   sklinfo: { name: 'Informasjon (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/info/{z}/{x}/{y}.png'], max: 16 }
@@ -346,13 +352,17 @@ map.on('load', () => {
   const NF = ['Noto Sans Bold'], NAME = ['coalesce', ['get', 'name:sv'], ['get', 'name']];
   const PH = { 'text-halo-color': '#ffffff', 'text-halo-width': 3, 'text-halo-blur': 0.5 };
   const placeLayer = (id, classes, minzoom, s0, s1, z0, z1) => map.addLayer({ id, type: 'symbol', source: 'omt', 'source-layer': 'place', minzoom,
-    filter: ['in', ['get', 'class'], ['literal', classes]],
+    filter: ['all', ['in', ['get', 'class'], ['literal', classes]], ['!', ['in', ['get', 'name'], ['literal', MY_NAMES]]]],
     layout: { 'text-field': NAME, 'text-font': NF, 'text-size': ['interpolate', ['linear'], ['zoom'], z0, s0, z1, s1], 'text-padding': 3, 'text-max-width': 8, 'symbol-sort-key': ['coalesce', ['get', 'rank'], 99] },
     paint: { 'text-color': '#0b0f17', ...PH } });
   placeLayer('names-city', ['city'], 3, 17, 32, 3, 12);
   placeLayer('names-town', ['town'], 6, 15, 28, 6, 13);
   placeLayer('names-village', ['village', 'suburb', 'neighbourhood'], 8.5, 14, 23, 8.5, 14);
   placeLayer('names-hamlet', ['hamlet', 'locality', 'isolated_dwelling'], 10.5, 13, 19, 10.5, 15);
+  map.addSource('myplaces', { type: 'geojson', data: { type: 'FeatureCollection', features: MY_PLACES.map(p => ({ type: 'Feature', properties: { name: p.n }, geometry: { type: 'Point', coordinates: p.c } })) } });
+  map.addLayer({ id: 'names-my', type: 'symbol', source: 'myplaces', minzoom: 5.5,
+    layout: { 'text-field': ['get', 'name'], 'text-font': NF, 'text-size': ['interpolate', ['linear'], ['zoom'], 5.5, 15, 9, 21, 14, 27], 'text-padding': 3, 'text-allow-overlap': true },
+    paint: { 'text-color': '#0b0f17', ...PH } });
   map.addLayer({ id: 'names-peak', type: 'symbol', source: 'omt', 'source-layer': 'mountain_peak', minzoom: 9.5,
     filter: ['has', 'name'],
     layout: { 'text-field': ['case', ['has', 'ele'], ['concat', NAME, '\n', ['to-string', ['get', 'ele']], ' m'], NAME], 'text-font': NF,
@@ -707,7 +717,7 @@ function applyLayerVis() {
   const set = (ids, vis) => ids.forEach(i => map.getLayer(i) && map.setLayoutProperty(i, 'visibility', vis));
   set(['trail-casing', 'trail-line', 'trail-label'], v('#l-trails'));
   set(['poi-c', 'poi-label'], v('#l-pois'));
-  set(['names-city', 'names-town', 'names-village', 'names-hamlet', 'names-peak', 'names-water'], v('#l-names'));
+  set(['names-city', 'names-town', 'names-village', 'names-hamlet', 'names-peak', 'names-water', 'names-my'], v('#l-names'));
   set(['track-line'], v('#l-track'));
   set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
   renderMarks();
