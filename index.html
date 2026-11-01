@@ -2,7 +2,10 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Skuterkart</title>
 <meta name="theme-color" content="#0f1720">
 <link rel="manifest" href="manifest.json">
@@ -52,6 +55,32 @@ dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);co
 dialog::backdrop{background:#0009}
 dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-radius:8px;border:1px solid var(--line);background:#0f1720}
 .maplibregl-ctrl-top-right{top:max(0px,env(safe-area-inset-top))}
+
+.maplibregl-popup-content{max-height:75vh;overflow:auto}
+@media (orientation:landscape){
+  #top{left:max(10px,env(safe-area-inset-left))}
+  #hud{left:max(10px,env(safe-area-inset-left))}
+  #fabs{right:max(10px,env(safe-area-inset-right))}
+}
+@media (max-height:520px){
+  #top{top:8px;max-width:300px}
+  #q{padding:8px 12px}
+  #fabs{top:50%;bottom:auto;transform:translateY(-50%);gap:8px}
+  .fab{width:42px;height:42px;font-size:18px}
+  .maplibregl-ctrl-top-right{display:none}
+  #hud{bottom:26px;font-size:12px;padding:4px 8px}
+  #bmenu{bottom:8px;max-height:calc(100% - 16px);right:calc(66px + env(safe-area-inset-right));width:min(300px,50vw)}
+  #panel{padding-top:10px;width:min(360px,50vw)}
+  .pp{font-size:12px}
+}
+@media (min-width:900px){
+  .fab{width:56px;height:56px;font-size:23px}
+  #top{max-width:460px}
+  #q{font-size:16px;padding:13px 16px}
+  #panel{width:400px}
+  #bmenu{right:84px}
+  .maplibregl-popup-content{font-size:14px}
+}
 </style>
 </head>
 <body>
@@ -170,16 +199,19 @@ const BASES = {
 const SKL_ATTR = '© <a href="https://skoterleder.org" target="_blank" rel="noopener">Skoterleder.org</a>, © OpenStreetMap-bidragsytere, CC-BY-SA';
 const OVERLAYS = {
   hill:   { name: 'Skyggerelieff (terreng)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'], max: 15, opacity: .45, attr: '© Esri' },
-  labels: { name: 'Stedsnavn (til satellitt)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'], max: 18, opacity: 1, attr: '© Esri' }
+  labels: { name: 'Stedsnavn (Esri) – nyttig på satellitt', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'], max: 18, opacity: 1, attr: '© Esri' }
 };
 const DOMOV = {
   skl:     { name: 'Skuterløyper (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/tiles/{z}/{x}/{y}.png'], max: 16 },
   sklinfo: { name: 'Informasjon (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/info/{z}/{x}/{y}.png'], max: 16 }
 };
+function curBase0() { const b = LS.get('sk_base', 'topo'); return b; }
 let ovOn = LS.get('sk_ov', {});
 if (!('skl' in ovOn)) ovOn.skl = true;
+if (curBase0() === 'sat' && !ovOn.labels) ovOn.labels = true;
 let curBase = LS.get('sk_base', 'topo');
 if (!BASES[curBase]) curBase = 'topo';
+let autoLab = false;
 
 function mkStyle() {
   const sources = {}, layers = [{ id: 'bg', type: 'background', paint: { 'background-color': '#0f1720' } }];
@@ -191,7 +223,7 @@ function mkStyle() {
     sources['o_' + k] = { type: 'raster', tiles: o.tiles, tileSize: 256, maxzoom: o.max, attribution: o.attr };
     layers.push({ id: 'o_' + k, type: 'raster', source: 'o_' + k, paint: { 'raster-opacity': o.opacity }, layout: { visibility: ovOn[k] ? 'visible' : 'none' } });
   }
-  return { version: 8, sources, layers };
+  return { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf', sources, layers };
 }
 
 const saved = LS.get('sk_view2', { c: [13.0, 61.1], z: 8 });
@@ -271,6 +303,15 @@ map.on('load', () => {
     'circle-color': ['match', ['get', 'kind'], 'hut', '#9b59ff', 'shelter', '#2ecc71', 'fuel', '#ff3b3b', '#cccccc'],
     'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
 
+  const FONT = ['Open Sans Regular', 'Arial Unicode MS Regular'];
+  map.addLayer({ id: 'trail-label', type: 'symbol', source: 'trails', minzoom: 10.5,
+    filter: ['any', ['!=', ['get', 'name'], ''], ['!=', ['get', 'ref'], '']],
+    layout: { 'symbol-placement': 'line', 'text-field': ['case', ['!=', ['get', 'name'], ''], ['get', 'name'], ['get', 'ref']], 'text-font': FONT, 'text-size': 12, 'symbol-spacing': 320, 'text-max-angle': 40 },
+    paint: { 'text-color': '#7a2b00', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+  map.addLayer({ id: 'poi-label', type: 'symbol', source: 'pois', minzoom: 10,
+    filter: ['!=', ['get', 'name'], ''],
+    layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': 12.5, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-max-width': 8, 'text-optional': true },
+    paint: { 'text-color': '#1a1f2b', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
   map.addLayer({ id: 'track-line', type: 'line', source: 'track', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 4, 'line-opacity': .9 } });
   map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2d8cff', 'fill-opacity': .12 } });
   map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
@@ -512,7 +553,11 @@ function onFix(p) {
   }
   status();
 }
+let wl = null;
+async function keepAwake() { try { if ('wakeLock' in navigator && !wl) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } } catch {} }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && watchId !== null) keepAwake(); });
 function startGps() {
+  keepAwake();
   if (!navigator.geolocation) return alert('Enheten støtter ikke posisjon.');
   if (watchId === null) watchId = navigator.geolocation.watchPosition(onFix, e => { extra = 'Posisjon: ' + e.message; status(); }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
 }
@@ -590,11 +635,15 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidd
 for (const [k, b] of Object.entries(BASES)) {
   $('#bases').append(h('label', {}, h('input', { type: 'radio', name: 'base', value: k, ...(k === curBase ? { checked: '' } : {}), onchange: () => {
     curBase = k; LS.set('sk_base', k);
+    const setLab = on => { ovOn.labels = on; LS.set('sk_ov', ovOn); const c = $('#ov_labels'); if (c) c.checked = on; map.setLayoutProperty('o_labels', 'visibility', on ? 'visible' : 'none'); };
+    if (k === 'sat' && !ovOn.labels) { setLab(true); autoLab = true; }
+    else if (k !== 'sat' && autoLab) { setLab(false); autoLab = false; }
     for (const kk of Object.keys(BASES)) map.setLayoutProperty('b_' + kk, 'visibility', kk === k ? 'visible' : 'none');
   } }), b.name));
 }
 for (const [k, o] of Object.entries({ ...DOMOV, ...OVERLAYS })) {
-  $('#ovs').append(h('label', {}, h('input', { type: 'checkbox', ...(ovOn[k] ? { checked: '' } : {}), onchange: e => {
+  $('#ovs').append(h('label', {}, h('input', { type: 'checkbox', id: 'ov_' + k, ...(ovOn[k] ? { checked: '' } : {}), onchange: e => {
+    if (k === 'labels') autoLab = false;
     ovOn[k] = e.target.checked; LS.set('sk_ov', ovOn);
     if (OVERLAYS[k]) map.setLayoutProperty('o_' + k, 'visibility', ovOn[k] ? 'visible' : 'none'); else domUpdate();
   } }), o.name));
@@ -602,8 +651,8 @@ for (const [k, o] of Object.entries({ ...DOMOV, ...OVERLAYS })) {
 function applyLayerVis() {
   const v = id => ($(id).checked ? 'visible' : 'none');
   const set = (ids, vis) => ids.forEach(i => map.getLayer(i) && map.setLayoutProperty(i, 'visibility', vis));
-  set(['trail-casing', 'trail-line'], v('#l-trails'));
-  set(['poi-c'], v('#l-pois'));
+  set(['trail-casing', 'trail-line', 'trail-label'], v('#l-trails'));
+  set(['poi-c', 'poi-label'], v('#l-pois'));
   set(['track-line'], v('#l-track'));
   set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
   renderMarks();
