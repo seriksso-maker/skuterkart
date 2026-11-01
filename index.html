@@ -25,6 +25,9 @@ button,select,input,textarea{font:inherit;color:inherit}
 .fab.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .fab.rec.on{background:var(--bad);border-color:var(--bad)}
 #hud{position:absolute;left:10px;bottom:calc(34px + env(safe-area-inset-bottom));z-index:4;background:#0f1720cc;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;display:none;max-width:70vw;backdrop-filter:blur(6px)}
+#bmenu{position:absolute;z-index:9;right:70px;bottom:calc(70px + env(safe-area-inset-bottom));width:min(290px,calc(100% - 84px));max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px #0009}
+#bmenu[hidden]{display:none}
+#bmenu label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
 #panel{position:absolute;z-index:8;right:0;top:0;bottom:0;width:min(360px,100%);background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));box-shadow:-8px 0 30px #0008}
 #panel[hidden]{display:none}
 #panel h3{margin:18px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
@@ -63,18 +66,25 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   <button class="fab" id="b-loc" title="Min posisjon">◎</button>
   <button class="fab rec" id="b-rec" title="Ta opp spor">●</button>
   <button class="fab" id="b-meas" title="Mål avstand">📏</button>
+  <button class="fab" id="b-map" title="Karttyper">🗺</button>
   <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
 </div>
 
 <div id="hud"></div>
+
+<aside id="bmenu" hidden>
+  <button class="x" id="bm-close">×</button>
+  <b>Karttype</b>
+  <div id="bases"></div>
+  <b style="display:block;margin-top:10px">Tillegg</b>
+  <div id="ovs"></div>
+</aside>
 
 <aside id="panel" hidden>
   <button class="x" id="p-close">×</button>
   <h2>Skuterkart</h2>
   <h3>Hopp til</h3>
   <div id="jump"></div>
-  <h3>Kartbakgrunn</h3>
-  <div id="bases"></div>
   <h3>Lag</h3>
   <label><input type="checkbox" id="l-trails" checked> Skuterløyper (OSM)</label>
   <label><input type="checkbox" id="l-pois" checked> Hytter, vindskjul, bensin</label>
@@ -149,10 +159,19 @@ const empty = () => ({ type: 'FeatureCollection', features: [] });
 
 /* ---------- kartbakgrunner ---------- */
 const BASES = {
-  topo: { name: 'Terreng (OpenTopoMap)', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
-  osm:  { name: 'OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, attr: '© OpenStreetMap-bidragsytere' },
-  sat:  { name: 'Satellitt (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, Maxar, Earthstar Geographics' }
+  topo:  { name: 'Terreng (OpenTopoMap)', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
+  esri:  { name: 'Topografisk (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, HERE, Garmin, OpenStreetMap-bidragsytere' },
+  snow:  { name: 'Vinterkart (OpenSnowMap)', tiles: ['https://tiles.opensnowmap.org/base_snow_map/{z}/{x}/{y}.png'], max: 18, attr: '© OpenSnowMap.org, © OpenStreetMap-bidragsytere' },
+  sat:   { name: 'Satellitt (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, Maxar, Earthstar Geographics' },
+  osm:   { name: 'OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, attr: '© OpenStreetMap-bidragsytere' },
+  cyclo: { name: 'CyclOSM (stier og høydekurver)', tiles: ['https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'], max: 18, attr: '© CyclOSM, © OpenStreetMap-bidragsytere' },
+  dark:  { name: 'Mørkt (natt)', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], max: 19, attr: '© CARTO, © OpenStreetMap-bidragsytere' }
 };
+const OVERLAYS = {
+  hill:   { name: 'Skyggerelieff (terreng)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'], max: 15, opacity: .45, attr: '© Esri' },
+  labels: { name: 'Stedsnavn (til satellitt)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'], max: 18, opacity: 1, attr: '© Esri' }
+};
+let ovOn = LS.get('sk_ov', {});
 let curBase = LS.get('sk_base', 'topo');
 if (!BASES[curBase]) curBase = 'topo';
 
@@ -161,6 +180,10 @@ function mkStyle() {
   for (const [k, b] of Object.entries(BASES)) {
     sources['b_' + k] = { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.max, attribution: b.attr };
     layers.push({ id: 'b_' + k, type: 'raster', source: 'b_' + k, layout: { visibility: k === curBase ? 'visible' : 'none' } });
+  }
+  for (const [k, o] of Object.entries(OVERLAYS)) {
+    sources['o_' + k] = { type: 'raster', tiles: o.tiles, tileSize: 256, maxzoom: o.max, attribution: o.attr };
+    layers.push({ id: 'o_' + k, type: 'raster', source: 'o_' + k, paint: { 'raster-opacity': o.opacity }, layout: { visibility: ovOn[k] ? 'visible' : 'none' } });
   }
   return { version: 8, sources, layers };
 }
@@ -514,14 +537,22 @@ for (const [n, c] of JUMPS) $('#jump').append(h('button', { class: 'btn sm', onc
 
 /* ---------- panel / lag ---------- */
 const panel = $('#panel');
-$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; };
+$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; $('#bmenu').hidden = true; };
+$('#b-map').onclick = () => { $('#bmenu').hidden = !$('#bmenu').hidden; panel.hidden = true; };
+$('#bm-close').onclick = () => { $('#bmenu').hidden = true; };
 $('#p-close').onclick = () => { panel.hidden = true; };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; $('#bmenu').hidden = true; } });
 for (const [k, b] of Object.entries(BASES)) {
   $('#bases').append(h('label', {}, h('input', { type: 'radio', name: 'base', value: k, ...(k === curBase ? { checked: '' } : {}), onchange: () => {
     curBase = k; LS.set('sk_base', k);
     for (const kk of Object.keys(BASES)) map.setLayoutProperty('b_' + kk, 'visibility', kk === k ? 'visible' : 'none');
   } }), b.name));
+}
+for (const [k, o] of Object.entries(OVERLAYS)) {
+  $('#ovs').append(h('label', {}, h('input', { type: 'checkbox', ...(ovOn[k] ? { checked: '' } : {}), onchange: e => {
+    ovOn[k] = e.target.checked; LS.set('sk_ov', ovOn);
+    map.setLayoutProperty('o_' + k, 'visibility', ovOn[k] ? 'visible' : 'none');
+  } }), o.name));
 }
 function applyLayerVis() {
   const v = id => ($(id).checked ? 'visible' : 'none');
