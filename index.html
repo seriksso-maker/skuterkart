@@ -249,7 +249,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
     sn.append(f);
   }
   const hide = () => { if (gone) return; gone = true; sp.classList.add('out'); setTimeout(() => sp.remove(), 800); };
-  window.__splashReady = () => setTimeout(hide, Math.max(0, 2400 - (performance.now() - t0)));
+  window.__splashReady = () => setTimeout(hide, Math.max(0, 5000 - (performance.now() - t0)));
   sp.addEventListener('click', hide);
   setTimeout(hide, 9000);
 })();
