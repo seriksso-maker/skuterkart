@@ -320,7 +320,7 @@ const empty = () => ({ type: 'FeatureCollection', features: [] });
 
 /* ---------- kartbakgrunner ---------- */
 const BASES = {
-  skoters: { name: 'The Skoters (flatt, hvit + høydekurver)', flat: true, max: 22, attr: 'Høydekurver: Mapzen/AWS Terrain Tiles (SRTM m.fl.)' },
+  skoters: { name: 'The Skoters (flatt, lysegrønn + høydekurver)', flat: true, max: 22, attr: 'Høydekurver: Mapzen/AWS Terrain Tiles (SRTM m.fl.)' },
   topo:  { name: 'Terreng (OpenTopoMap)', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
   esri:  { name: 'Topografisk (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, HERE, Garmin, OpenStreetMap-bidragsytere' },
   snow:  { name: 'Vinterkart (OpenSnowMap)', tiles: ['https://tiles.opensnowmap.org/base_snow_map/{z}/{x}/{y}.png'], max: 18, attr: '© OpenSnowMap.org, © OpenStreetMap-bidragsytere' },
@@ -355,7 +355,7 @@ let autoLab = false;
 function mkStyle() {
   const sources = {}, layers = [{ id: 'bg', type: 'background', paint: { 'background-color': '#0f1720' } }];
   for (const [k, b] of Object.entries(BASES)) {
-    if (b.flat) { layers.push({ id: 'b_' + k, type: 'background', paint: { 'background-color': '#ffffff' }, layout: { visibility: k === curBase ? 'visible' : 'none' } }); continue; }
+    if (b.flat) { layers.push({ id: 'b_' + k, type: 'background', paint: { 'background-color': '#d9efc9' }, layout: { visibility: k === curBase ? 'visible' : 'none' } }); continue; }
     sources['b_' + k] = { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.max, attribution: b.attr };
     layers.push({ id: 'b_' + k, type: 'raster', source: 'b_' + k, layout: { visibility: k === curBase ? 'visible' : 'none' } });
   }
