@@ -91,6 +91,36 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 #smenu input:focus{border-color:var(--acc)}
 #s-res{margin-top:6px}
 
+/* ---------- liggende mobil/nettbrett ---------- */
+html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;touch-action:manipulation}
+.fab{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#map,#map2{touch-action:none}
+@media (orientation:landscape){
+  #panel{padding-left:16px;padding-right:max(16px,env(safe-area-inset-right));padding-bottom:max(16px,env(safe-area-inset-bottom))}
+  .maplibregl-popup-content{max-height:calc(100dvh - 70px)}
+  #hud{max-width:calc(100vw - 150px)}
+}
+@media (orientation:landscape) and (max-height:520px){
+  /* knappene i to kolonner slik at alle 7 alltid er innenfor skjermen */
+  #fabs{top:max(6px,env(safe-area-inset-top));bottom:max(6px,env(safe-area-inset-bottom));transform:none;
+    flex-direction:column;flex-wrap:wrap-reverse;align-content:flex-start;justify-content:center;gap:8px}
+  .fab{width:44px;height:44px}
+  #bmenu,#rmenu,#smenu{top:8px;bottom:8px;max-height:none;right:calc(108px + env(safe-area-inset-right));width:min(330px,calc(100vw - 180px));padding:10px 12px;overscroll-behavior:contain}
+  #rmenu{width:min(380px,calc(100vw - 180px))}
+  #panel{width:min(360px,56vw)}
+  dialog{max-height:calc(100dvh - 16px);overflow:auto;width:min(420px,70vw)}
+  .rrow{margin:5px 0}
+  #r-out ol{max-height:none}
+}
+@media (orientation:landscape) and (min-width:900px) and (min-height:521px){
+  /* nettbrett: sidepanel i full høyde, store treffflater */
+  .fab{width:58px;height:58px;font-size:24px}
+  #bmenu,#rmenu,#smenu{top:12px;bottom:12px;max-height:none;right:96px;width:380px}
+  #rmenu{width:420px}
+  #panel{width:420px}
+  .rrow input[type=text],.rrow input[type=search],#smenu input{padding:12px;font-size:16px}
+}
+
 /* ---------- oppstartsskjerm ---------- */
 #splash{position:fixed;inset:0;z-index:9999;overflow:hidden;display:grid;place-items:center;
   background:radial-gradient(120% 90% at 50% 0%,#1d3050 0%,#0e1828 45%,#070b12 100%);
@@ -118,6 +148,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 @keyframes pulse{50%{opacity:.35}}
 #splash .trail{stroke-dasharray:7 11;animation:dash 1.6s linear infinite}
 @keyframes dash{to{stroke-dashoffset:-36}}
+@media (orientation:landscape) and (max-height:520px){#splash .ttl{margin-top:-8vh}#splash .mtn{height:55%}#splash .hint{font-size:10px}}
 @media (prefers-reduced-motion:reduce){#splash *{animation:none!important}#splash .bar{width:min(60vw,360px)}}
 </style>
 </head>
