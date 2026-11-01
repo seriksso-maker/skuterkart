@@ -142,6 +142,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   <div id="jump"></div>
   <h3>Lag</h3>
   <label><input type="checkbox" id="l-trails" checked> Skuterløyper (OSM)</label>
+  <label><input type="checkbox" id="l-names" checked> Stedsnavn (byer, fjell, innsjøer)</label>
   <label><input type="checkbox" id="l-pois" checked> Hytter, vindskjul, bensin</label>
   <label><input type="checkbox" id="l-marks" checked> Mine markører</label>
   <label><input type="checkbox" id="l-track" checked> Mitt spor</label>
@@ -341,6 +342,25 @@ map.on('load', () => {
     filter: ['!=', ['get', 'name'], ''],
     layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 14, 14, 19], 'text-offset': [0, 1.15], 'text-anchor': 'top', 'text-max-width': 8, 'text-optional': true },
     paint: { 'text-color': '#10151f', 'text-halo-color': '#ffffff', 'text-halo-width': 2.5 } });
+  map.addSource('omt', { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © OpenMapTiles, data fra OpenStreetMap' });
+  const NF = ['Noto Sans Bold'], NAME = ['coalesce', ['get', 'name:sv'], ['get', 'name']];
+  const PH = { 'text-halo-color': '#ffffff', 'text-halo-width': 3, 'text-halo-blur': 0.5 };
+  const placeLayer = (id, classes, minzoom, s0, s1, z0, z1) => map.addLayer({ id, type: 'symbol', source: 'omt', 'source-layer': 'place', minzoom,
+    filter: ['in', ['get', 'class'], ['literal', classes]],
+    layout: { 'text-field': NAME, 'text-font': NF, 'text-size': ['interpolate', ['linear'], ['zoom'], z0, s0, z1, s1], 'text-padding': 3, 'text-max-width': 8, 'symbol-sort-key': ['coalesce', ['get', 'rank'], 99] },
+    paint: { 'text-color': '#0b0f17', ...PH } });
+  placeLayer('names-city', ['city'], 3, 17, 32, 3, 12);
+  placeLayer('names-town', ['town'], 6, 15, 28, 6, 13);
+  placeLayer('names-village', ['village', 'suburb', 'neighbourhood'], 8.5, 14, 23, 8.5, 14);
+  placeLayer('names-hamlet', ['hamlet', 'locality', 'isolated_dwelling'], 10.5, 13, 19, 10.5, 15);
+  map.addLayer({ id: 'names-peak', type: 'symbol', source: 'omt', 'source-layer': 'mountain_peak', minzoom: 9.5,
+    layout: { 'text-field': ['case', ['has', 'ele'], ['concat', NAME, '\n', ['to-string', ['get', 'ele']], ' m'], NAME], 'text-font': NF,
+      'text-size': ['interpolate', ['linear'], ['zoom'], 9.5, 14, 14, 20], 'text-padding': 3, 'text-max-width': 8 },
+    paint: { 'text-color': '#4e2d12', ...PH } });
+  map.addLayer({ id: 'names-water', type: 'symbol', source: 'omt', 'source-layer': 'water_name', minzoom: 9,
+    filter: ['==', ['get', 'class'], 'lake'],
+    layout: { 'text-field': NAME, 'text-font': NF, 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 13, 14, 19], 'text-padding': 3, 'text-max-width': 7, 'text-letter-spacing': 0.05 },
+    paint: { 'text-color': '#0d47a1', ...PH } });
   map.addLayer({ id: 'track-line', type: 'line', source: 'track', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 4, 'line-opacity': .9 } });
   map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2d8cff', 'fill-opacity': .12 } });
   map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
@@ -686,11 +706,12 @@ function applyLayerVis() {
   const set = (ids, vis) => ids.forEach(i => map.getLayer(i) && map.setLayoutProperty(i, 'visibility', vis));
   set(['trail-casing', 'trail-line', 'trail-label'], v('#l-trails'));
   set(['poi-c', 'poi-label'], v('#l-pois'));
+  set(['names-city', 'names-town', 'names-village', 'names-hamlet', 'names-peak', 'names-water'], v('#l-names'));
   set(['track-line'], v('#l-track'));
   set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
   renderMarks();
 }
-['#l-trails', '#l-pois', '#l-marks', '#l-track', '#l-gpx'].forEach(id => $(id).addEventListener('change', () => { applyLayerVis(); want(); }));
+['#l-trails', '#l-names', '#l-pois', '#l-marks', '#l-track', '#l-gpx'].forEach(id => $(id).addEventListener('change', () => { applyLayerVis(); want(); }));
 $('#t-add').onclick = () => { panel.hidden = true; openDlg(map.getCenter()); };
 
 /* ---------- GPX eksport / import ---------- */
