@@ -167,11 +167,15 @@ const BASES = {
   cyclo: { name: 'CyclOSM (stier og høydekurver)', tiles: ['https://a.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png'], max: 18, attr: '© CyclOSM, © OpenStreetMap-bidragsytere' },
   dark:  { name: 'Mørkt (natt)', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], max: 19, attr: '© CARTO, © OpenStreetMap-bidragsytere' }
 };
+const SKL_ATTR = '© <a href="https://skoterleder.org" target="_blank" rel="noopener">Skoterleder.org</a>, © OpenStreetMap-bidragsytere, CC-BY-SA';
 const OVERLAYS = {
+  skl:    { name: 'Skoterleder (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/tiles/{z}/{x}/{y}.png'], max: 16, opacity: 1, attr: SKL_ATTR },
+  sklinfo:{ name: 'Informasjon (Skoterleder.org)', tiles: ['https://overl.skoterleder.org/info/{z}/{x}/{y}.png'], max: 16, opacity: 1, attr: SKL_ATTR },
   hill:   { name: 'Skyggerelieff (terreng)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'], max: 15, opacity: .45, attr: '© Esri' },
   labels: { name: 'Stedsnavn (til satellitt)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'], max: 18, opacity: 1, attr: '© Esri' }
 };
 let ovOn = LS.get('sk_ov', {});
+if (!('skl' in ovOn)) ovOn.skl = true;
 let curBase = LS.get('sk_base', 'topo');
 if (!BASES[curBase]) curBase = 'topo';
 
@@ -181,7 +185,7 @@ function mkStyle() {
     sources['b_' + k] = { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.max, attribution: b.attr };
     layers.push({ id: 'b_' + k, type: 'raster', source: 'b_' + k, layout: { visibility: k === curBase ? 'visible' : 'none' } });
   }
-  for (const [k, o] of Object.entries(OVERLAYS)) {
+  for (const [k, o] of Object.entries(OVERLAYS).sort((p, q) => (p[0] === 'hill' ? -1 : 0) - (q[0] === 'hill' ? -1 : 0))) {
     sources['o_' + k] = { type: 'raster', tiles: o.tiles, tileSize: 256, maxzoom: o.max, attribution: o.attr };
     layers.push({ id: 'o_' + k, type: 'raster', source: 'o_' + k, paint: { 'raster-opacity': o.opacity }, layout: { visibility: ovOn[k] ? 'visible' : 'none' } });
   }
@@ -249,13 +253,13 @@ function flushTrails() {
 
 /* ---------- Overpass: løyper og steder, flisevis med cache ---------- */
 const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
-const TZ = 8, TTL = 7 * 864e5;
+const TZ = 10, TTL = 7 * 864e5, MINZ = 10;
 const doneT = new Set(), busyT = new Set(), failT = new Map();
 let queue = [], active = 0;
 
 function idb() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('skuterkart2', 1);
+    const r = indexedDB.open('skuterkart3', 1);
     r.onupgradeneeded = () => r.result.createObjectStore('ovp');
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);
@@ -336,9 +340,9 @@ function viewTiles() {
 function want() {
   if (!mapReady) return;
   if (!$('#l-trails').checked && !$('#l-pois').checked) { queue = []; return status(); }
-  if (map.getZoom() < 7) { queue = []; return status(); }
+  if (map.getZoom() < MINZ) { queue = []; return status(); }
   const now = Date.now();
-  queue = viewTiles().filter(k => !doneT.has(k) && !busyT.has(k) && !(failT.has(k) && now - failT.get(k) < 30000)).slice(0, 30);
+  queue = viewTiles().filter(k => !doneT.has(k) && !busyT.has(k) && !(failT.has(k) && now - failT.get(k) < 30000)).slice(0, 20);
   pump();
 }
 map.on('moveend', want);
@@ -349,11 +353,11 @@ function status() {
   const parts = [];
   const now = Date.now();
   const recentFail = [...failT.values()].some(t => now - t < 30000);
-  if (map.getZoom() < 7 && ($('#l-trails').checked || $('#l-pois').checked)) parts.push('Zoom inn for å laste løyper');
+  if (map.getZoom() < MINZ && ($('#l-trails').checked || $('#l-pois').checked)) parts.push('Zoom inn (10+) for klikkbare løyper');
   else if (active || queue.length) parts.push(`Laster løyper … (${active + queue.length})`);
   else if (navigator.onLine === false && viewTiles().some(k => !doneT.has(k))) parts.push('Offline – ingen lagrede løyper her');
   else if (recentFail) parts.push(`Kunne ikke hente løyper (${lastErr}) – prøver igjen ved neste flytting`);
-  else if (map.getZoom() >= 7 && ($('#l-trails').checked || $('#l-pois').checked)) parts.push(`${trailF.size} løypesegmenter, ${poiF.size} steder lastet`);
+  else if (map.getZoom() >= MINZ && ($('#l-trails').checked || $('#l-pois').checked)) parts.push(`${trailF.size} løypesegmenter, ${poiF.size} steder lastet`);
   if (lastFix) parts.push(`${Math.round((lastFix.speed || 0) * 3.6)} km/t`);
   if (recording) parts.push('● ' + fmtKm(trackLen()));
   if (extra) parts.push(extra);
@@ -612,19 +616,22 @@ $('#t-off').onclick = async () => {
   const info = $('#off-info'), b = BASES[curBase], bn = map.getBounds();
   const z0 = Math.floor(map.getZoom()) + 1;
   let zmax = Math.min(z0 + 3, b.max), urls = [];
+  const srcs = [b, ...Object.entries(OVERLAYS).filter(([k]) => ovOn[k]).map(([, o]) => o)];
   const build = zm => {
     const u = [];
-    for (let z = z0; z <= zm; z++) {
-      const x0 = Math.floor(lon2x(bn.getWest(), z)), x1 = Math.floor(lon2x(bn.getEast(), z));
-      const y0 = Math.floor(lat2y(bn.getNorth(), z)), y1 = Math.floor(lat2y(bn.getSouth(), z));
-      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) u.push(tileUrl(b, z, x, y));
+    for (const sc of srcs) {
+      for (let z = z0; z <= Math.min(zm, sc.max); z++) {
+        const x0 = Math.floor(lon2x(bn.getWest(), z)), x1 = Math.floor(lon2x(bn.getEast(), z));
+        const y0 = Math.floor(lat2y(bn.getNorth(), z)), y1 = Math.floor(lat2y(bn.getSouth(), z));
+        for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) u.push(tileUrl(sc, z, x, y));
+      }
     }
     return u;
   };
   urls = build(zmax);
-  while (urls.length > 800 && zmax > z0) urls = build(--zmax);
-  if (urls.length > 800) return alert('Området er for stort. Zoom lenger inn og prøv igjen.');
-  if (!confirm(`Laster ned ${urls.length} kartfliser (zoom ${z0}–${zmax}) fra «${b.name}». Fortsette?`)) return;
+  while (urls.length > 1500 && zmax > z0) urls = build(--zmax);
+  if (urls.length > 1500) return alert('Området er for stort. Zoom lenger inn og prøv igjen.');
+  if (!confirm(`Laster ned ${urls.length} kartfliser (zoom ${z0}–${zmax}) fra «${b.name}» og påslåtte tillegg. Fortsette?`)) return;
   const cache = await caches.open(TILE_CACHE);
   let n = 0, fail = 0;
   want(); // løyper i synlig område
