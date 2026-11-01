@@ -303,15 +303,15 @@ map.on('load', () => {
     'circle-color': ['match', ['get', 'kind'], 'hut', '#9b59ff', 'shelter', '#2ecc71', 'fuel', '#ff3b3b', '#cccccc'],
     'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
 
-  const FONT = ['Open Sans Regular', 'Arial Unicode MS Regular'];
+  const FONT = ['Noto Sans Bold'];
   map.addLayer({ id: 'trail-label', type: 'symbol', source: 'trails', minzoom: 10.5,
     filter: ['any', ['!=', ['get', 'name'], ''], ['!=', ['get', 'ref'], '']],
-    layout: { 'symbol-placement': 'line', 'text-field': ['case', ['!=', ['get', 'name'], ''], ['get', 'name'], ['get', 'ref']], 'text-font': FONT, 'text-size': 12, 'symbol-spacing': 320, 'text-max-angle': 40 },
-    paint: { 'text-color': '#7a2b00', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+    layout: { 'symbol-placement': 'line', 'text-field': ['case', ['!=', ['get', 'name'], ''], ['get', 'name'], ['get', 'ref']], 'text-font': FONT, 'text-size': ['interpolate', ['linear'], ['zoom'], 10.5, 13, 14, 17], 'symbol-spacing': 320, 'text-max-angle': 40 },
+    paint: { 'text-color': '#7a2b00', 'text-halo-color': '#ffffff', 'text-halo-width': 2.5 } });
   map.addLayer({ id: 'poi-label', type: 'symbol', source: 'pois', minzoom: 10,
     filter: ['!=', ['get', 'name'], ''],
-    layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': 12.5, 'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-max-width': 8, 'text-optional': true },
-    paint: { 'text-color': '#1a1f2b', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
+    layout: { 'text-field': ['get', 'name'], 'text-font': FONT, 'text-size': ['interpolate', ['linear'], ['zoom'], 10, 14, 14, 19], 'text-offset': [0, 1.15], 'text-anchor': 'top', 'text-max-width': 8, 'text-optional': true },
+    paint: { 'text-color': '#10151f', 'text-halo-color': '#ffffff', 'text-halo-width': 2.5 } });
   map.addLayer({ id: 'track-line', type: 'line', source: 'track', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 4, 'line-opacity': .9 } });
   map.addLayer({ id: 'acc-fill', type: 'fill', source: 'acc', paint: { 'fill-color': '#2d8cff', 'fill-opacity': .12 } });
   map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
