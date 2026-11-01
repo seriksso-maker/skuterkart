@@ -55,7 +55,7 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 <div id="map"></div>
 
 <div id="top">
-  <input id="q" type="search" placeholder="Søk sted, hytte, fjell …" autocomplete="off">
+  <input id="q" type="search" placeholder="Sök plats, fjäll, stuga …" autocomplete="off">
   <div id="res"></div>
 </div>
 
@@ -149,8 +149,7 @@ const empty = () => ({ type: 'FeatureCollection', features: [] });
 
 /* ---------- kartbakgrunner ---------- */
 const BASES = {
-  topo: { name: 'Terreng (OpenTopoMap) – Norge + Sverige', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
-  kv:   { name: 'Kartverket topo – Norge', tiles: ['https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png'], max: 18, attr: '© Kartverket' },
+  topo: { name: 'Terreng (OpenTopoMap)', tiles: ['https://tile.opentopomap.org/{z}/{x}/{y}.png'], max: 17, attr: '© OpenTopoMap, © OpenStreetMap-bidragsytere' },
   osm:  { name: 'OpenStreetMap', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], max: 19, attr: '© OpenStreetMap-bidragsytere' },
   sat:  { name: 'Satellitt (Esri)', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], max: 18, attr: '© Esri, Maxar, Earthstar Geographics' }
 };
@@ -491,7 +490,7 @@ $('#q').addEventListener('input', e => {
   if (v.length < 3) { box.style.display = 'none'; return; }
   qT = setTimeout(async () => {
     try {
-      const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=no,se&accept-language=nb&q=${encodeURIComponent(v)}`)).json();
+      const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=se&accept-language=sv&q=${encodeURIComponent(v)}`)).json();
       box.replaceChildren(...j.map(r => h('div', { onclick: () => {
         box.style.display = 'none'; $('#q').value = r.display_name.split(',')[0];
         if (r.boundingbox) map.fitBounds([[+r.boundingbox[2], +r.boundingbox[0]], [+r.boundingbox[3], +r.boundingbox[1]]], { maxZoom: 13, duration: 900 });
