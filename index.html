@@ -71,6 +71,8 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 <aside id="panel" hidden>
   <button class="x" id="p-close">×</button>
   <h2>Skuterkart</h2>
+  <h3>Hopp til</h3>
+  <div id="jump"></div>
   <h3>Kartbakgrunn</h3>
   <div id="bases"></div>
   <h3>Lag</h3>
@@ -164,14 +166,14 @@ function mkStyle() {
   return { version: 8, sources, layers };
 }
 
-const saved = LS.get('sk_view', { c: [13, 62.5], z: 6 });
+const saved = LS.get('sk_view2', { c: [13.0, 61.1], z: 8 });
 const map = new maplibregl.Map({
   container: 'map', style: mkStyle(), center: saved.c, zoom: saved.z,
   hash: true, maxPitch: 60, attributionControl: { compact: true }
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-map.on('moveend', () => LS.set('sk_view', { c: map.getCenter().toArray(), z: map.getZoom() }));
+map.on('moveend', () => LS.set('sk_view2', { c: map.getCenter().toArray(), z: map.getZoom() }));
 
 /* ---------- state ---------- */
 const trailF = new Map(), poiF = new Map();
@@ -284,9 +286,10 @@ async function loadTile(k) {
     const d = await ovp(tq(x, y));
     ingest(d); cachePut(k, { t: Date.now(), d });
     return true;
-  } catch {
+  } catch (e) {
     if (c) { ingest(c.d); return true; }
     failT.set(k, Date.now());
+    lastErr = (e && e.message) || 'ukjent feil';
     return false;
   }
 }
@@ -316,12 +319,16 @@ function want() {
 map.on('moveend', want);
 
 /* ---------- status / HUD ---------- */
-let extra = '';
+let extra = '', lastErr = '';
 function status() {
   const parts = [];
+  const now = Date.now();
+  const recentFail = [...failT.values()].some(t => now - t < 30000);
   if (map.getZoom() < 7 && ($('#l-trails').checked || $('#l-pois').checked)) parts.push('Zoom inn for å laste løyper');
   else if (active || queue.length) parts.push(`Laster løyper … (${active + queue.length})`);
   else if (navigator.onLine === false && viewTiles().some(k => !doneT.has(k))) parts.push('Offline – ingen lagrede løyper her');
+  else if (recentFail) parts.push(`Kunne ikke hente løyper (${lastErr}) – prøver igjen ved neste flytting`);
+  else if (map.getZoom() >= 7 && ($('#l-trails').checked || $('#l-pois').checked)) parts.push(`${trailF.size} løypesegmenter, ${poiF.size} steder lastet`);
   if (lastFix) parts.push(`${Math.round((lastFix.speed || 0) * 3.6)} km/t`);
   if (recording) parts.push('● ' + fmtKm(trackLen()));
   if (extra) parts.push(extra);
@@ -495,6 +502,16 @@ $('#q').addEventListener('input', e => {
   }, 350);
 });
 document.addEventListener('click', e => { if (!e.target.closest('#top')) $('#res').style.display = 'none'; });
+
+/* ---------- hurtigvalg: svenske skuterområder ---------- */
+const JUMPS = [
+  ['Sälen', [13.25, 61.17]], ['Idre', [12.72, 61.86]], ['Funäsdalen', [12.55, 62.54]],
+  ['Vemdalen', [13.85, 62.45]], ['Åre', [13.08, 63.40]], ['Storlien', [12.10, 63.31]],
+  ['Gäddede', [14.14, 64.50]], ['Borgafjäll', [14.35, 64.82]], ['Hemavan', [15.10, 65.81]],
+  ['Ammarnäs', [16.2, 65.96]], ['Jokkmokk', [19.83, 66.61]], ['Abisko', [18.83, 68.35]],
+  ['Kiruna', [20.23, 67.86]], ['Riksgränsen', [18.13, 68.43]]
+];
+for (const [n, c] of JUMPS) $('#jump').append(h('button', { class: 'btn sm', onclick: () => { map.flyTo({ center: c, zoom: 9.5, duration: 1200 }); panel.hidden = true; } }, n));
 
 /* ---------- panel / lag ---------- */
 const panel = $('#panel');
