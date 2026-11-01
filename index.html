@@ -21,8 +21,8 @@ button,select,input,textarea{font:inherit;color:inherit}
 .fab.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .fab.rec.on{background:var(--bad);border-color:var(--bad)}
 #hud{position:absolute;left:10px;bottom:calc(34px + env(safe-area-inset-bottom));z-index:4;background:#0f1720cc;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;display:none;max-width:70vw;backdrop-filter:blur(6px)}
-#bmenu,#rmenu{position:absolute;z-index:9;right:70px;bottom:calc(70px + env(safe-area-inset-bottom));width:min(290px,calc(100% - 84px));max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px #0009}
-#bmenu[hidden],#rmenu[hidden]{display:none}
+#bmenu,#rmenu,#smenu{position:absolute;z-index:9;right:70px;bottom:calc(70px + env(safe-area-inset-bottom));width:min(290px,calc(100% - 84px));max-height:70vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 30px #0009}
+#bmenu[hidden],#rmenu[hidden],#smenu[hidden]{display:none}
 #bmenu label,#rmenu label{display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer}
 #panel{position:absolute;z-index:8;right:0;top:0;bottom:0;width:min(360px,100%);background:var(--card);border-left:1px solid var(--line);overflow:auto;padding:16px;padding-top:max(16px,env(safe-area-inset-top));box-shadow:-8px 0 30px #0008}
 #panel[hidden]{display:none}
@@ -59,14 +59,14 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   .fab{width:42px;height:42px;font-size:18px}
   .maplibregl-ctrl-top-right{display:none}
   #hud{bottom:26px;font-size:12px;padding:4px 8px}
-  #bmenu,#rmenu{bottom:8px;max-height:calc(100% - 16px);right:calc(66px + env(safe-area-inset-right));width:min(300px,50vw)}
+  #bmenu,#rmenu,#smenu{bottom:8px;max-height:calc(100% - 16px);right:calc(66px + env(safe-area-inset-right));width:min(300px,50vw)}
   #panel{padding-top:10px;width:min(360px,50vw)}
   .pp{font-size:12px}
 }
 @media (min-width:900px){
   .fab{width:56px;height:56px;font-size:23px}
       #panel{width:400px}
-  #bmenu,#rmenu{right:84px}
+  #bmenu,#rmenu,#smenu{right:84px}
   .maplibregl-popup-content{font-size:14px}
 }
 
@@ -76,13 +76,17 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
 .rrow input:focus{border-color:var(--acc)}
 .rrow button{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#1b2a3a;cursor:pointer;font-size:15px}
 .ab{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;border:2px solid #fff}
-#r-res div{padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
-#r-res div:hover{background:#1d2c3b}
+#r-res div,#s-res div{padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+#r-res div:hover,#s-res div:hover{background:#1d2c3b}
 #r-out{font-size:13px}
 #r-out ol{padding-left:20px;margin:6px 0}
 #r-out .sum{font-size:15px;font-weight:600;margin:8px 0 2px}
 #r-out .warn{color:#ffb74d}
 @media (max-height:520px){#rmenu{width:min(360px,54vw)}}
+
+#smenu input{width:100%;margin-top:8px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#0f1720;outline:none;font-size:15px}
+#smenu input:focus{border-color:var(--acc)}
+#s-res{margin-top:6px}
 </style>
 </head>
 <body>
@@ -93,12 +97,20 @@ dialog select,dialog textarea{width:100%;margin:6px 0 10px;padding:9px;border-ra
   <button class="fab" id="b-loc" title="Min posisjon">◎</button>
   <button class="fab rec" id="b-rec" title="Ta opp spor">●</button>
   <button class="fab" id="b-meas" title="Mål avstand">📏</button>
+  <button class="fab" id="b-search" title="Søk sted">🔍</button>
   <button class="fab" id="b-route" title="Rute (fra–til)">🧭</button>
   <button class="fab" id="b-map" title="Karttyper">🗺</button>
   <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
 </div>
 
 <div id="hud"></div>
+
+<aside id="smenu" hidden>
+  <button class="x" id="sm-close">×</button>
+  <b>Søk sted</b>
+  <input type="search" id="s-q" placeholder="Sted, fjell, hytte …" autocomplete="off">
+  <div id="s-res"></div>
+</aside>
 
 <aside id="rmenu" hidden>
   <button class="x" id="rm-close">×</button>
@@ -643,6 +655,31 @@ $('#b-meas').onclick = () => {
   drawMeasure();
 };
 
+/* ---------- søk (knapp) ---------- */
+$('#b-search').onclick = () => {
+  const open = $('#smenu').hidden;
+  panel.hidden = true; $('#bmenu').hidden = true; $('#rmenu').hidden = true;
+  $('#smenu').hidden = !open;
+  if (open) setTimeout(() => $('#s-q').focus(), 50);
+};
+$('#sm-close').onclick = () => { $('#smenu').hidden = true; };
+let sT = null;
+$('#s-q').addEventListener('input', e => {
+  clearTimeout(sT);
+  const v = e.target.value.trim(), box = $('#s-res');
+  if (v.length < 3) { box.replaceChildren(); return; }
+  sT = setTimeout(async () => {
+    try {
+      const j = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=se&accept-language=sv&q=${encodeURIComponent(v)}`)).json();
+      box.replaceChildren(...(j.length ? j.map(r => h('div', { onclick: () => {
+        $('#smenu').hidden = true; box.replaceChildren(); $('#s-q').value = r.display_name.split(',')[0];
+        if (r.boundingbox) map.fitBounds([[+r.boundingbox[2], +r.boundingbox[0]], [+r.boundingbox[3], +r.boundingbox[1]]], { maxZoom: 13, duration: 900 });
+        else map.flyTo({ center: [+r.lon, +r.lat], zoom: 12 });
+      } }, r.display_name)) : [h('div', {}, 'Ingen treff')]));
+    } catch { box.textContent = 'Søk feilet (offline?)'; }
+  }, 350);
+});
+
 /* ---------- hurtigvalg: svenske skuterområder ---------- */
 const JUMPS = [
   ['Sälen', [13.25, 61.17]], ['Idre', [12.72, 61.86]], ['Funäsdalen', [12.55, 62.54]],
@@ -655,11 +692,11 @@ for (const [n, c] of JUMPS) $('#jump').append(h('button', { class: 'btn sm', onc
 
 /* ---------- panel / lag ---------- */
 const panel = $('#panel');
-$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; $('#bmenu').hidden = true; $('#rmenu').hidden = true; };
-$('#b-map').onclick = () => { $('#bmenu').hidden = !$('#bmenu').hidden; panel.hidden = true; $('#rmenu').hidden = true; };
+$('#b-menu').onclick = () => { panel.hidden = !panel.hidden; $('#bmenu').hidden = true; $('#rmenu').hidden = true; $('#smenu').hidden = true; };
+$('#b-map').onclick = () => { $('#bmenu').hidden = !$('#bmenu').hidden; panel.hidden = true; $('#rmenu').hidden = true; $('#smenu').hidden = true; };
 $('#bm-close').onclick = () => { $('#bmenu').hidden = true; };
 $('#p-close').onclick = () => { panel.hidden = true; };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; $('#bmenu').hidden = true; $('#rmenu').hidden = true; } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; $('#bmenu').hidden = true; $('#rmenu').hidden = true; $('#smenu').hidden = true; } });
 for (const [k, b] of Object.entries(BASES)) {
   $('#bases').append(h('label', {}, h('input', { type: 'radio', name: 'base', value: k, ...(k === curBase ? { checked: '' } : {}), onchange: () => {
     curBase = k; LS.set('sk_base', k);
@@ -868,7 +905,7 @@ function buildRoute(g, s, path) {
 const R = { from: null, to: null, pick: null, route: null, nav: false, mk: {} };
 const SPEED = 40; // km/t, antatt snittfart til tidsestimat
 const fmtT = m => { m = Math.round(m); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' t ' + String(m % 60).padStart(2, '0') + ' min'; };
-function openRoute() { $('#rmenu').hidden = false; panel.hidden = true; $('#bmenu').hidden = true; }
+function openRoute() { $('#rmenu').hidden = false; panel.hidden = true; $('#bmenu').hidden = true; $('#smenu').hidden = true; }
 $('#b-route').onclick = () => { if ($('#rmenu').hidden) openRoute(); else $('#rmenu').hidden = true; };
 $('#rm-close').onclick = () => { $('#rmenu').hidden = true; };
 function outMsg(t, warn) { $('#r-out').replaceChildren(h('div', { class: warn ? 'warn' : '' }, t)); }
