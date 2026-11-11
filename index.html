@@ -659,7 +659,7 @@ async function loadTile(k) {
   }
 }
 function pump() {
-  while (active < 2 && queue.length) {
+  while (active < 3 && queue.length) {
     const k = queue.shift();
     busyT.add(k); active++;
     loadTile(k).then(ok => { if (ok) doneT.add(k); }).finally(() => { busyT.delete(k); active--; flushTrails(); status(); pump(); });
@@ -670,8 +670,10 @@ function viewTiles() {
   const b = map.getBounds(), out = [];
   const x0 = Math.floor(lon2x(b.getWest(), TZ)), x1 = Math.floor(lon2x(b.getEast(), TZ));
   const y0 = Math.floor(lat2y(b.getNorth(), TZ)), y1 = Math.floor(lat2y(b.getSouth(), TZ));
-  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push(x + '/' + y);
-  return out;
+  const c = map.getCenter(), cx = lon2x(c.lng, TZ), cy = lat2y(c.lat, TZ);
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push([x, y, Math.hypot(x + .5 - cx, y + .5 - cy)]);
+  out.sort((a, b) => a[2] - b[2]);
+  return out.filter(t => !(map.getPitch() > 1) || t[2] <= 2.5).map(t => t[0] + '/' + t[1]);
 }
 function want() {
   if (!mapReady) return;
