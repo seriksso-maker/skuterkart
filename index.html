@@ -193,6 +193,8 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <button class="fab" id="b-search" title="Søk sted">🔍</button>
   <button class="fab" id="b-route" title="Rute (fra–til)">🧭</button>
   <button class="fab" id="b-3d" title="3D-terreng" style="font-size:15px;font-weight:700">3D</button>
+  <button class="fab" id="b-3x" title="Overdriv relieff" style="display:none;font-size:16px">↕</button>
+  <button class="fab" id="b-3n" title="Nord opp" style="display:none;font-size:16px">⟲</button>
   <button class="fab" id="b-map" title="Karttyper">🗺</button>
   <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
 </div>
@@ -756,19 +758,26 @@ map.on('mousemove', e => {
 });
 
 /* ---------- 3D-terreng ---------- */
-let on3d = false;
+let on3d = false, exag = LS.get('sk_exag', 1.6);
 function set3d(on) {
   on3d = on;
   $('#b-3d').classList.toggle('on', on);
+  $('#b-3x').style.display = $('#b-3n').style.display = on ? '' : 'none';
   if (on) {
     if (!map.getSource('dem3d')) map.addSource('dem3d', { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 });
-    map.setTerrain({ source: 'dem3d', exaggeration: 1.6 });
-    map.easeTo({ pitch: 62, zoom: Math.max(map.getZoom(), 10.5), duration: 800 });
+    if (!map.getLayer('hs3d')) map.addLayer({ id: 'hs3d', type: 'hillshade', source: 'dem3d', paint: { 'hillshade-exaggeration': .55, 'hillshade-shadow-color': '#2b3a4a', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#5b6b7a', 'hillshade-illumination-direction': 315 } }, 'ban-fill');
+    map.setLayoutProperty('hs3d', 'visibility', 'visible');
+    map.setTerrain({ source: 'dem3d', exaggeration: exag });
+    map.dragRotate.enable(); map.touchZoomRotate.enableRotation(); map.touchPitch.enable();
+    map.easeTo({ pitch: 65, zoom: Math.max(map.getZoom(), 10.5), duration: 800 });
   } else {
+    map.dragRotate.disable(); map.touchZoomRotate.disableRotation();
     map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
-    map.once('moveend', () => { if (!on3d) map.setTerrain(null); });
+    map.once('moveend', () => { if (!on3d) { map.setTerrain(null); if (map.getLayer('hs3d')) map.setLayoutProperty('hs3d', 'visibility', 'none'); } });
   }
 }
+$('#b-3x').onclick = () => { exag = exag < 1.2 ? 1.6 : exag < 2 ? 2.4 : exag < 3 ? 3.4 : 1; LS.set('sk_exag', exag); map.setTerrain({ source: 'dem3d', exaggeration: exag }); $('#hud').textContent = 'Relieff ×' + exag; $('#hud').style.display = 'block'; };
+$('#b-3n').onclick = () => map.easeTo({ bearing: 0, duration: 400 });
 $('#b-3d').onclick = () => { if (!mapReady) return; set3d(!on3d); };
 
 /* ---------- egne markører ---------- */

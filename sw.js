@@ -1,4 +1,4 @@
-const SHELL = 'sk-shell-v6';
+const SHELL = 'sk-shell-v7';
 const TILES = 'sk-tiles-v1';
 const SHELL_FILES = ['./', './index.html', './manifest.json'];
 const TILE_HOSTS = /(tile\.opentopomap\.org|tile\.openstreetmap\.org|elevation-tiles-prod|s3\.amazonaws\.com|server\.arcgisonline\.com|tiles\.opensnowmap\.org|tile-cyclosm\.openstreetmap\.fr|basemaps\.cartocdn\.com)/;
