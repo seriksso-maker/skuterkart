@@ -233,6 +233,8 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <label><input type="checkbox" id="l-trails" checked> Skuterløyper (OSM)</label>
   <label><input type="checkbox" id="l-names" checked> Stedsnavn (byer, fjell, innsjøer)</label>
   <label><input type="checkbox" id="l-pois" checked> Hytter, vindskjul, bensin</label>
+  <label><input type="checkbox" id="l-ban"> Skoterförbud (Sundsvall, Luleå)</label>
+  <label><input type="checkbox" id="l-snow"> Snødybde (SMHI, cm)</label>
   <label><input type="checkbox" id="l-marks" checked> Mine markører</label>
   <label><input type="checkbox" id="l-track" checked> Mitt spor</label>
   <label><input type="checkbox" id="l-gpx" checked> Importert GPX</label>
@@ -251,11 +253,13 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <div class="leg"><i style="background:#ff5a00"></i> Skuterløype (designated)</div>
   <div class="leg"><i style="background:#ff9f1a"></i> Tillatt (yes)</div>
   <div class="leg"><i style="background:#a0a0a0"></i> Betinget (permissive)</div>
+  <div class="leg"><i style="background:#e5252a"></i> Skoterförbud (område)</div>
+  <div class="leg"><i style="background:#2ecc71"></i> Led inom förbudsområde</div>
   <div class="leg"><b style="background:#9b59ff"></b> Hytte</div>
   <div class="leg"><b style="background:#2ecc71"></b> Vindskjul</div>
   <div class="leg"><b style="background:#ff3b3b"></b> Bensin</div>
   <div class="leg"><i style="background:#2d8cff"></i> Mitt spor / importert GPX</div>
-  <p class="leg" style="display:block;margin-top:14px">Løypedata: © OpenStreetMap-bidragsytere. Sjekk alltid lokale regler, løypestatus og skredvarsel (varsom.no) før du kjører.</p>
+  <p class="leg" style="display:block;margin-top:14px">Løypedata: © OpenStreetMap-bidragsytere. Förbudsområden: Sundsvalls kommun, Luleå kommun (åpne data). Snødybde: SMHI (CC-BY 4.0). Sjekk alltid lokale regler, løypestatus og skredvarsel (varsom.no) før du kjører.</p>
 </aside>
 
 <dialog id="dlg">
@@ -487,7 +491,7 @@ const MARK_TYPES = ['warn', 'fuel', 'shelter', 'hut', 'parking', 'cafe', 'camp',
 map.on('load', () => {
   mapReady = true;
   if (window.__splashReady) window.__splashReady();
-  for (const id of ['trails', 'pois', 'track', 'measure', 'acc', 'gpx', 'route']) map.addSource(id, { type: 'geojson', data: empty() });
+  for (const id of ['trails', 'pois', 'track', 'measure', 'acc', 'gpx', 'route', 'ban', 'banl', 'snow']) map.addSource(id, { type: 'geojson', data: empty() });
 
   map.addLayer({ id: 'gpx-line', type: 'line', source: 'gpx', filter: ['==', '$type', 'LineString'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#2d8cff', 'line-width': 3, 'line-opacity': .85 } });
   map.addLayer({ id: 'gpx-pt', type: 'circle', source: 'gpx', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#2d8cff', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
@@ -520,8 +524,53 @@ map.on('load', () => {
   map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
   map.addLayer({ id: 'meas-pt', type: 'circle', source: 'measure', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#ffe14d', 'circle-stroke-color': '#000', 'circle-stroke-width': 1.5 } });
 
-  drawTrack(); renderMarks(); applyLayerVis(); want();
+  map.addLayer({ id: 'ban-fill', type: 'fill', source: 'ban', paint: { 'fill-color': '#e5252a', 'fill-opacity': .28 } }, 'trail-casing');
+  map.addLayer({ id: 'ban-line', type: 'line', source: 'ban', paint: { 'line-color': '#e5252a', 'line-width': 1.6 } }, 'trail-casing');
+  map.addLayer({ id: 'banl-line', type: 'line', source: 'banl', paint: { 'line-color': '#2ecc71', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
+  map.addLayer({ id: 'snow-c', type: 'circle', source: 'snow', paint: { 'circle-radius': 13, 'circle-color': '#ffffff', 'circle-stroke-color': '#2d8cff', 'circle-stroke-width': 2 } });
+  map.addLayer({ id: 'snow-t', type: 'symbol', source: 'snow', layout: { 'text-field': ['to-string', ['get', 'cm']], 'text-font': FONT, 'text-size': 13, 'text-allow-overlap': true }, paint: { 'text-color': '#0b1d33' } });
+  drawTrack(); renderMarks(); applyLayerVis(); want(); loadExtra();
 });
+
+/* ---------- Skoterförbud + snødybde (åpne data, lastes ved behov) ---------- */
+const EXTRA = { ban: false, snow: false };
+const EXTRA_URLS = {
+  ban: 'https://karta.sundsvall.se/geoserver/SundsvallsKommun/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=SundsvallsKommun:Skoterforbudsomrade_yta&outputFormat=application/json&srsName=EPSG:4326',
+  banl: 'https://karta.sundsvall.se/geoserver/SundsvallsKommun/ows?service=WFS&version=2.0.0&request=GetFeature&typeName=SundsvallsKommun:SkoterledInomForbudsomrade_linje&outputFormat=application/json&srsName=EPSG:4326',
+  lulea: 'https://kartportal.lulea.se/server/rest/services/Skoter/MapServer/2/query?where=1%3D1&outFields=*&f=geojson&outSR=4326&maxAllowableOffset=0.0004&geometryPrecision=5',
+  smhiSt: 'https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/8.json',
+  smhiVal: 'https://opendata-download-metobs.smhi.se/api/version/1.0/parameter/8/station-set/all/period/latest-hour/data.json'
+};
+async function loadExtra() {
+  if (!mapReady) return;
+  if ($('#l-ban').checked && !EXTRA.ban) {
+    EXTRA.ban = true;
+    try {
+      const [a, b, c] = await Promise.allSettled([EXTRA_URLS.ban, EXTRA_URLS.banl, EXTRA_URLS.lulea].map(u => fetch(u).then(r => r.json())));
+      const feats = [];
+      if (a.status === 'fulfilled') feats.push(...a.value.features);
+      if (c.status === 'fulfilled') feats.push(...c.value.features);
+      setData('ban', { type: 'FeatureCollection', features: feats });
+      if (b.status === 'fulfilled') setData('banl', b.value);
+      if (!feats.length) EXTRA.ban = false;
+    } catch { EXTRA.ban = false; }
+  }
+  if ($('#l-snow').checked && !EXTRA.snow) {
+    EXTRA.snow = true;
+    try {
+      const [st, val] = await Promise.all([fetch(EXTRA_URLS.smhiSt).then(r => r.json()), fetch(EXTRA_URLS.smhiVal).then(r => r.json())]);
+      const pos = new Map(st.station.map(x => [x.key, x]));
+      const feats = [];
+      for (const v of val.station || []) {
+        const x = pos.get(v.key), last = v.value && v.value[v.value.length - 1];
+        if (!x || !last || last.value == null || last.value === '' || x.latitude == null) continue;
+        feats.push({ type: 'Feature', properties: { cm: Math.round(parseFloat(last.value)), name: x.name }, geometry: { type: 'Point', coordinates: [x.longitude, x.latitude] } });
+      }
+      setData('snow', { type: 'FeatureCollection', features: feats });
+      if (!feats.length) EXTRA.snow = false;
+    } catch { EXTRA.snow = false; }
+  }
+}
 
 function setData(id, d) { if (mapReady) map.getSource(id).setData(d); }
 let flushT = null;
@@ -867,11 +916,13 @@ function applyLayerVis() {
   set(['trail-casing', 'trail-line', 'trail-label'], v('#l-trails'));
   set(['poi-c', 'poi-label'], v('#l-pois'));
   set(['names-city', 'names-town', 'names-village', 'names-hamlet', 'names-peak', 'names-water', 'names-my'], v('#l-names'));
+  set(['ban-fill', 'ban-line', 'banl-line'], v('#l-ban'));
+  set(['snow-c', 'snow-t'], v('#l-snow'));
   set(['track-line'], v('#l-track'));
   set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
   renderMarks();
 }
-['#l-trails', '#l-names', '#l-pois', '#l-marks', '#l-track', '#l-gpx'].forEach(id => $(id).addEventListener('change', () => { applyLayerVis(); want(); }));
+['#l-trails', '#l-names', '#l-pois', '#l-marks', '#l-track', '#l-gpx', '#l-ban', '#l-snow'].forEach(id => $(id).addEventListener('change', () => { applyLayerVis(); want(); loadExtra(); }));
 $('#t-add').onclick = () => { panel.hidden = true; openDlg(map.getCenter()); };
 
 /* ---------- GPX eksport / import ---------- */
