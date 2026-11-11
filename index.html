@@ -759,10 +759,19 @@ map.on('mousemove', e => {
 
 /* ---------- 3D-terreng ---------- */
 let on3d = false, exag = LS.get('sk_exag', 1.6);
+const TW = { n: { line: ['interpolate', ['linear'], ['zoom'], 6, 2.2, 10, 4, 14, 6.5], case: ['interpolate', ['linear'], ['zoom'], 6, 2.4, 10, 5, 14, 8] },
+             d: { line: ['interpolate', ['linear'], ['zoom'], 6, 5, 10, 9, 14, 14], case: ['interpolate', ['linear'], ['zoom'], 6, 8, 10, 14, 14, 21] } };
+function trailStyle3d(on) {
+  const w = on ? TW.d : TW.n;
+  if (map.getLayer('trail-line')) { map.setPaintProperty('trail-line', 'line-width', w.line); map.setPaintProperty('trail-line', 'line-opacity', 1); }
+  if (map.getLayer('trail-casing')) { map.setPaintProperty('trail-casing', 'line-width', w.case); map.setPaintProperty('trail-casing', 'line-color', on ? '#000000' : '#ffffff'); map.setPaintProperty('trail-casing', 'line-opacity', on ? .9 : .85); }
+  if (map.getLayer('trail-label')) map.setLayoutProperty('trail-label', 'text-size', on ? ['interpolate', ['linear'], ['zoom'], 10.5, 15, 14, 21] : ['interpolate', ['linear'], ['zoom'], 10.5, 13, 14, 17]);
+}
 function set3d(on) {
   on3d = on;
   $('#b-3d').classList.toggle('on', on);
   $('#b-3x').style.display = $('#b-3n').style.display = on ? '' : 'none';
+  trailStyle3d(on);
   if (on) {
     if (!map.getSource('dem3d')) map.addSource('dem3d', { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 });
     if (!map.getLayer('hs3d')) map.addLayer({ id: 'hs3d', type: 'hillshade', source: 'dem3d', paint: { 'hillshade-exaggeration': .55, 'hillshade-shadow-color': '#2b3a4a', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#5b6b7a', 'hillshade-illumination-direction': 315 } }, 'ban-fill');
