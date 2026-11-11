@@ -251,9 +251,9 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <button class="btn" id="t-clr-cache">🧹 Tøm offline-lager</button>
   <div class="leg" id="off-info"></div>
   <h3>Tegnforklaring</h3>
-  <div class="leg"><i style="background:#ff5a00"></i> Skuterløype (designated)</div>
-  <div class="leg"><i style="background:#ff9f1a"></i> Tillatt (yes)</div>
-  <div class="leg"><i style="background:#a0a0a0"></i> Betinget (permissive)</div>
+  <div class="leg"><i style="background:#ff00d4"></i> Skuterløype (designated)</div>
+  <div class="leg"><i style="background:#ffe600"></i> Tillatt (yes)</div>
+  <div class="leg"><i style="background:#00e5ff"></i> Betinget (permissive)</div>
   <div class="leg"><i style="background:#ff1a1a;outline:2px solid #b00000"></i> Skoterförbud (område)</div>
   <div class="leg"><i style="background:#2ecc71"></i> Led inom förbudsområde</div>
   <div class="leg"><b style="background:#9b59ff"></b> Hytte</div>
@@ -500,8 +500,8 @@ map.on('load', () => {
 
   map.addLayer({ id: 'trail-casing', type: 'line', source: 'trails', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-opacity': .85, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.4, 10, 5, 14, 8] } });
   map.addLayer({ id: 'trail-line', type: 'line', source: 'trails', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
-    'line-color': ['match', ['get', 'sn'], 'designated', '#ff5a00', 'yes', '#ff9f1a', 'permissive', '#a0a0a0', '#ff5a00'],
-    'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.2, 10, 2.6, 14, 4.5] } });
+    'line-color': ['match', ['get', 'sn'], 'designated', '#ff00d4', 'yes', '#ffe600', 'permissive', '#00e5ff', '#ff00d4'],
+    'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.2, 10, 4, 14, 6.5] } });
 
   map.addLayer({ id: 'poi-c', type: 'circle', source: 'pois', paint: {
     'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 12, 8],
