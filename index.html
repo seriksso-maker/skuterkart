@@ -253,7 +253,7 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <div class="leg"><i style="background:#ff5a00"></i> Skuterløype (designated)</div>
   <div class="leg"><i style="background:#ff9f1a"></i> Tillatt (yes)</div>
   <div class="leg"><i style="background:#a0a0a0"></i> Betinget (permissive)</div>
-  <div class="leg"><i style="background:#e5252a"></i> Skoterförbud (område)</div>
+  <div class="leg"><i style="background:#ff1a1a;outline:2px solid #b00000"></i> Skoterförbud (område)</div>
   <div class="leg"><i style="background:#2ecc71"></i> Led inom förbudsområde</div>
   <div class="leg"><b style="background:#9b59ff"></b> Hytte</div>
   <div class="leg"><b style="background:#2ecc71"></b> Vindskjul</div>
@@ -524,8 +524,9 @@ map.on('load', () => {
   map.addLayer({ id: 'meas-line', type: 'line', source: 'measure', filter: ['==', '$type', 'LineString'], paint: { 'line-color': '#ffe14d', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
   map.addLayer({ id: 'meas-pt', type: 'circle', source: 'measure', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#ffe14d', 'circle-stroke-color': '#000', 'circle-stroke-width': 1.5 } });
 
-  map.addLayer({ id: 'ban-fill', type: 'fill', source: 'ban', paint: { 'fill-color': '#e5252a', 'fill-opacity': .28 } }, 'trail-casing');
-  map.addLayer({ id: 'ban-line', type: 'line', source: 'ban', paint: { 'line-color': '#e5252a', 'line-width': 1.6 } }, 'trail-casing');
+  map.addLayer({ id: 'ban-fill', type: 'fill', source: 'ban', paint: { 'fill-color': '#ff1a1a', 'fill-opacity': .5 } }, 'trail-casing');
+  map.addLayer({ id: 'ban-case', type: 'line', source: 'ban', layout: { 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 4, 12, 7] } }, 'trail-casing');
+  map.addLayer({ id: 'ban-line', type: 'line', source: 'ban', layout: { 'line-join': 'round' }, paint: { 'line-color': '#b00000', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2, 12, 4] } }, 'trail-casing');
   map.addLayer({ id: 'banl-line', type: 'line', source: 'banl', paint: { 'line-color': '#2ecc71', 'line-width': 3, 'line-dasharray': [2, 1.5] } });
   map.addLayer({ id: 'snow-c', type: 'circle', source: 'snow', paint: { 'circle-radius': 13, 'circle-color': '#ffffff', 'circle-stroke-color': '#2d8cff', 'circle-stroke-width': 2 } });
   map.addLayer({ id: 'snow-t', type: 'symbol', source: 'snow', layout: { 'text-field': ['to-string', ['get', 'cm']], 'text-font': FONT, 'text-size': 13, 'text-allow-overlap': true }, paint: { 'text-color': '#0b1d33' } });
@@ -916,7 +917,7 @@ function applyLayerVis() {
   set(['trail-casing', 'trail-line', 'trail-label'], v('#l-trails'));
   set(['poi-c', 'poi-label'], v('#l-pois'));
   set(['names-city', 'names-town', 'names-village', 'names-hamlet', 'names-peak', 'names-water', 'names-my'], v('#l-names'));
-  set(['ban-fill', 'ban-line', 'banl-line'], v('#l-ban'));
+  set(['ban-fill', 'ban-case', 'ban-line', 'banl-line'], v('#l-ban'));
   set(['snow-c', 'snow-t'], v('#l-snow'));
   set(['track-line'], v('#l-track'));
   set(['gpx-line', 'gpx-pt'], v('#l-gpx'));
