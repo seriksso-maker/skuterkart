@@ -192,6 +192,7 @@ html,body{height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-text-si
   <button class="fab" id="b-meas" title="Mål avstand">📏</button>
   <button class="fab" id="b-search" title="Søk sted">🔍</button>
   <button class="fab" id="b-route" title="Rute (fra–til)">🧭</button>
+  <button class="fab" id="b-3d" title="3D-terreng" style="font-size:15px;font-weight:700">3D</button>
   <button class="fab" id="b-map" title="Karttyper">🗺</button>
   <button class="fab" id="b-menu" title="Lag og verktøy">☰</button>
 </div>
@@ -394,7 +395,7 @@ function mkStyle() {
 const saved = LS.get('sk_view2', { c: [13.0, 61.1], z: 8 });
 const map = new maplibregl.Map({
   container: 'map', style: mkStyle(), center: saved.c, zoom: saved.z,
-  hash: true, maxPitch: 0, dragRotate: false, attributionControl: { compact: true, customAttribution: SKL_ATTR + ', <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © OpenMapTiles' }
+  hash: true, maxPitch: 75, dragRotate: false, attributionControl: { compact: true, customAttribution: SKL_ATTR + ', <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © OpenMapTiles' }
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 map.touchZoomRotate.disableRotation();
@@ -406,6 +407,7 @@ const domBox = h('div', { style: 'position:absolute;left:0;top:0;width:100%;heig
 map.getCanvasContainer().append(domBox);
 const domTiles = new Map();
 function domUpdate() {
+  domBox.style.display = map.getPitch() > 1 ? 'none' : '';
   const keep = new Set(), m = map.getZoom(), bnd = map.getBounds();
   for (const [k, o] of Object.entries(DOMOV)) {
     if (!ovOn[k]) continue;
@@ -437,9 +439,9 @@ function domUpdate() {
 ['load', 'move', 'moveend', 'resize'].forEach(ev => map.on(ev, domUpdate));
 const map2 = new maplibregl.Map({
   container: 'map2', style: { version: 8, glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf', sources: {}, layers: [] },
-  center: saved.c, zoom: saved.z, interactive: false, attributionControl: false, maxPitch: 0
+  center: saved.c, zoom: saved.z, interactive: false, attributionControl: false, maxPitch: 75
 });
-const syncN = () => map2.jumpTo({ center: map.getCenter(), zoom: map.getZoom() });
+const syncN = () => map2.jumpTo({ center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
 ['move', 'resize'].forEach(ev => map.on(ev, () => { if (ev === 'resize') map2.resize(); syncN(); }));
 /* Stedsnavn ligger i et eget gjennomsiktig kart over løypelaget, så de alltid er øverst */
 function initNames() {
@@ -752,6 +754,22 @@ map.on('mousemove', e => {
   const f = map.queryRenderedFeatures([[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]], { layers: ['poi-c', 'trail-line'].filter(l => map.getLayer(l)) });
   map.getCanvas().style.cursor = measuring ? 'crosshair' : f.length ? 'pointer' : '';
 });
+
+/* ---------- 3D-terreng ---------- */
+let on3d = false;
+function set3d(on) {
+  on3d = on;
+  $('#b-3d').classList.toggle('on', on);
+  if (on) {
+    if (!map.getSource('dem3d')) map.addSource('dem3d', { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 });
+    map.setTerrain({ source: 'dem3d', exaggeration: 1.6 });
+    map.easeTo({ pitch: 62, duration: 700 });
+  } else {
+    map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+    map.once('moveend', () => { if (!on3d) map.setTerrain(null); });
+  }
+}
+$('#b-3d').onclick = () => { if (!mapReady) return; set3d(!on3d); };
 
 /* ---------- egne markører ---------- */
 let mkObjs = [];
