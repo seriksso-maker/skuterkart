@@ -608,7 +608,7 @@ async function cacheClear() { try { const d = await idb(); d.transaction('ovp', 
 function tq(x, y) {
   const s = y2lat(y + 1, TZ), n = y2lat(y, TZ), w = x2lon(x, TZ), e = x2lon(x + 1, TZ);
   const bb = `${s.toFixed(4)},${w.toFixed(4)},${n.toFixed(4)},${e.toFixed(4)}`;
-  return `[out:json][timeout:90];(way["snowmobile"~"^(yes|designated|permissive)$"](${bb});way["piste:type"="snowmobile"](${bb}););out tags geom;` +
+  return `[out:json][timeout:90];(way["snowmobile"~"^(yes|designated|permissive)$"](${bb});way["piste:type"="snowmobile"](${bb});(rel["route"="snowmobile"](${bb});way(r);););out tags geom;` +
          `(nwr["tourism"~"^(wilderness_hut|alpine_hut)$"](${bb});nwr["amenity"="shelter"](${bb});nwr["amenity"="fuel"](${bb}););out tags center;`;
 }
 async function ovp(q, ms = 100000) {
@@ -629,7 +629,7 @@ async function ovp(q, ms = 100000) {
 function ingest(j) {
   for (const el of j.elements || []) {
     const t = el.tags || {};
-    if (el.type === 'way' && el.geometry && (t.snowmobile || t['piste:type'] === 'snowmobile')) {
+    if (el.type === 'way' && el.geometry) {
       trailF.set('w' + el.id, { type: 'Feature', properties: {
         osm: 'way/' + el.id, name: t.name || '', ref: t.ref || '', sn: t.snowmobile || 'designated',
         op: t.operator || '', desc: t.description || t.note || '', web: t.website || '' },
@@ -645,11 +645,11 @@ function ingest(j) {
 }
 async function loadTile(k) {
   const [x, y] = k.split('/').map(Number);
-  const c = await cacheGet(k);
+  const ck = k + '#v2', c = await cacheGet(ck);
   if (c && Date.now() - c.t < TTL) { ingest(c.d); return true; }
   try {
     const d = await ovp(tq(x, y));
-    ingest(d); cachePut(k, { t: Date.now(), d });
+    ingest(d); cachePut(ck, { t: Date.now(), d });
     return true;
   } catch (e) {
     if (c) { ingest(c.d); return true; }
