@@ -763,6 +763,17 @@ map.on('mousemove', e => {
 let on3d = false, exag = LS.get('sk_exag', 1.6);
 const TW = { n: { line: ['interpolate', ['linear'], ['zoom'], 6, 2.2, 10, 4, 14, 6.5], case: ['interpolate', ['linear'], ['zoom'], 6, 2.4, 10, 5, 14, 8] },
              d: { line: ['interpolate', ['linear'], ['zoom'], 6, 5, 10, 9, 14, 14], case: ['interpolate', ['linear'], ['zoom'], 6, 8, 10, 14, 14, 21] } };
+const P3 = u => 'https://wsrv.nl/?output=png&url=' + u.replace('https://', '');
+function ov3d() {
+  for (const k of ['skl', 'sklinfo']) {
+    const id = 'o3_' + k;
+    if (on3d && !map.getSource(id)) {
+      map.addSource(id, { type: 'raster', tiles: [P3(DOMOV[k].tiles[0])], tileSize: 256, maxzoom: DOMOV[k].max });
+      map.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 1, 'raster-resampling': 'nearest' } }, 'trail-casing');
+    }
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on3d && ovOn[k] ? 'visible' : 'none');
+  }
+}
 function trailStyle3d(on) {
   const w = on ? TW.d : TW.n;
   if (map.getLayer('trail-line')) { map.setPaintProperty('trail-line', 'line-width', w.line); map.setPaintProperty('trail-line', 'line-opacity', 1); }
@@ -773,14 +784,14 @@ function set3d(on) {
   on3d = on;
   $('#b-3d').classList.toggle('on', on);
   $('#b-3x').style.display = $('#b-3n').style.display = on ? '' : 'none';
-  trailStyle3d(on);
+  trailStyle3d(on); ov3d();
   if (on) {
     if (!map.getSource('dem3d')) map.addSource('dem3d', { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 });
     if (!map.getLayer('hs3d')) map.addLayer({ id: 'hs3d', type: 'hillshade', source: 'dem3d', paint: { 'hillshade-exaggeration': .55, 'hillshade-shadow-color': '#2b3a4a', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#5b6b7a', 'hillshade-illumination-direction': 315 } }, 'ban-fill');
     map.setLayoutProperty('hs3d', 'visibility', 'visible');
     map.setTerrain({ source: 'dem3d', exaggeration: exag });
     map.dragRotate.enable(); map.touchZoomRotate.enableRotation(); map.touchPitch.enable();
-    map.easeTo({ pitch: 65, zoom: Math.max(map.getZoom(), 10.5), duration: 800 });
+    map.easeTo({ pitch: 65, duration: 800 });
   } else {
     map.dragRotate.disable(); map.touchZoomRotate.disableRotation();
     map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
@@ -946,7 +957,7 @@ for (const [k, o] of Object.entries({ ...DOMOV, ...OVERLAYS })) {
   $('#ovs').append(h('label', {}, h('input', { type: 'checkbox', id: 'ov_' + k, ...(ovOn[k] ? { checked: '' } : {}), onchange: e => {
     if (k === 'labels') autoLab = false;
     ovOn[k] = e.target.checked; LS.set('sk_ov', ovOn);
-    if (OVERLAYS[k]) map.setLayoutProperty('o_' + k, 'visibility', ovOn[k] ? 'visible' : 'none'); else domUpdate();
+    if (OVERLAYS[k]) map.setLayoutProperty('o_' + k, 'visibility', ovOn[k] ? 'visible' : 'none'); else { domUpdate(); ov3d(); }
   } }), o.name));
 }
 function applyLayerVis() {
